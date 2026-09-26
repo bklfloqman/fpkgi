@@ -1,0 +1,1298 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>FPKGi Game Library Viewer</title>
+<style>
+  :root {
+    --bg: #0f1115;
+    --panel: #1a1d24;
+    --panel-2: #232733;
+    --accent: #4f8cff;
+    --accent-2: #7c5cff;
+    --text: #e6e9ef;
+    --muted: #8b93a7;
+    --border: #2c313d;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    background: var(--bg);
+    color: var(--text);
+  }
+  header {
+    position: sticky; top: 0; z-index: 10;
+    background: linear-gradient(180deg, #15181f 0%, #0f1115 100%);
+    border-bottom: 1px solid var(--border);
+    padding: 16px 24px;
+  }
+  h1 { margin: 0 0 12px; font-size: 20px; letter-spacing: .3px; }
+  h1 span { color: var(--accent); }
+  .controls {
+    display: flex; flex-wrap: wrap; gap: 10px; align-items: center;
+  }
+  .controls input, .controls select {
+    background: var(--panel); color: var(--text);
+    border: 1px solid var(--border); border-radius: 8px;
+    padding: 8px 12px; font-size: 14px; outline: none;
+  }
+  .controls input:focus, .controls select:focus { border-color: var(--accent); }
+  .controls input[type="text"] { flex: 1; min-width: 220px; }
+  .stat { color: var(--muted); font-size: 13px; margin-left: auto; }
+  .btn {
+    background: var(--accent); color: #fff; border: none;
+    border-radius: 8px; padding: 8px 14px; font-size: 14px;
+    cursor: pointer; font-weight: 600;
+  }
+  .btn:hover { background: #3d7ae6; }
+  .btn.secondary { background: var(--panel-2); color: var(--text); border: 1px solid var(--border); }
+  .btn.secondary:hover { background: #2c313d; }
+
+  .grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(230px, 1fr));
+    gap: 18px;
+    padding: 24px;
+  }
+  .card {
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    overflow: hidden;
+    display: flex; flex-direction: column;
+    transition: transform .15s ease, border-color .15s ease;
+  }
+  .card:hover { transform: translateY(-3px); border-color: var(--accent); }
+  .cover {
+    width: 100%; aspect-ratio: 1 / 1;
+    background: var(--panel-2);
+    display: flex; align-items: center; justify-content: center;
+    overflow: hidden; position: relative;
+  }
+  .cover img { width: 100%; height: 100%; object-fit: cover; display: block; }
+  .cover .fallback {
+    color: var(--muted); font-size: 12px; text-align: center; padding: 8px;
+  }
+  .badges {
+    position: absolute; top: 8px; left: 8px; right: 8px;
+    display: flex; justify-content: space-between; pointer-events: none;
+  }
+  .badge {
+    background: rgba(0,0,0,.7); backdrop-filter: blur(4px);
+    padding: 3px 8px; border-radius: 999px; font-size: 11px; font-weight: 600;
+    color: #fff;
+  }
+  .badge.region-USA { background: rgba(79,140,255,.85); }
+  .badge.region-EUR { background: rgba(124,92,255,.85); }
+  .badge.region-JAP { background: rgba(255,92,140,.85); }
+  .badge.region-ASI { background: rgba(255,165,0,.85); }
+
+  .body { padding: 12px 14px 14px; display: flex; flex-direction: column; gap: 6px; flex: 1; }
+  .title { font-weight: 700; font-size: 14px; line-height: 1.3; }
+  .genre { color: var(--accent); font-size: 12px; font-weight: 600; }
+  .desc { color: var(--muted); font-size: 12px; line-height: 1.4; min-height: 34px; }
+  .meta { display: flex; flex-wrap: wrap; gap: 6px; margin-top: auto; padding-top: 6px; }
+  .meta span {
+    background: var(--panel-2); border: 1px solid var(--border);
+    color: var(--muted); font-size: 11px; padding: 2px 7px; border-radius: 6px;
+  }
+  .empty { grid-column: 1/-1; text-align: center; color: var(--muted); padding: 60px 20px; }
+
+  /* Detail modal */
+  .modal-backdrop {
+    position: fixed; inset: 0; background: rgba(0,0,0,.7);
+    display: none; align-items: center; justify-content: center; z-index: 100;
+    padding: 20px;
+  }
+  .modal-backdrop.open { display: flex; }
+  .modal {
+    background: var(--panel); border: 1px solid var(--border);
+    border-radius: 14px; max-width: 760px; width: 100%;
+    max-height: 90vh; overflow: auto; display: flex; flex-direction: column;
+  }
+  .modal-head {
+    display: flex; gap: 16px; padding: 18px;
+    border-bottom: 1px solid var(--border);
+  }
+  .modal-head img {
+    width: 140px; height: 140px; object-fit: cover; border-radius: 10px;
+    background: var(--panel-2); flex-shrink: 0;
+  }
+  .modal-head .info { flex: 1; min-width: 0; }
+  .modal-head h2 { margin: 0 0 6px; font-size: 18px; }
+  .modal-head .g { color: var(--accent); font-size: 13px; font-weight: 600; margin-bottom: 8px; }
+  .modal-head .d { color: var(--muted); font-size: 13px; line-height: 1.5; }
+  .modal-body { padding: 18px; }
+  .field {
+    display: grid; grid-template-columns: 140px 1fr;
+    gap: 10px; padding: 8px 0; border-bottom: 1px dashed var(--border);
+    font-size: 13px;
+  }
+  .field:last-child { border-bottom: none; }
+  .field .k { color: var(--muted); }
+  .field .v { color: var(--text); word-break: break-all; }
+  .modal-actions {
+    padding: 14px 18px; border-top: 1px solid var(--border);
+    display: flex; gap: 10px; justify-content: flex-end;
+  }
+  .toast {
+    position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%);
+    background: var(--accent); color: #fff; padding: 10px 18px; border-radius: 8px;
+    font-size: 13px; opacity: 0; pointer-events: none; transition: opacity .25s;
+    z-index: 200;
+  }
+  .toast.show { opacity: 1; }
+</style>
+</head>
+<body>
+
+<header>
+  <h1>🎮 FPKGi <span>Library Viewer</span></h1>
+  <div class="controls">
+    <input type="text" id="search" placeholder="Search by title, genre, publisher...">
+    <select id="regionFilter">
+      <option value="">All Regions</option>
+      <option value="USA">USA</option>
+      <option value="EUR">EUR</option>
+      <option value="JAP">JAP</option>
+      <option value="ASI">ASI</option>
+    </select>
+    <select id="genreFilter">
+      <option value="">All Genres</option>
+    </select>
+    <select id="sortBy">
+      <option value="name">Sort: Name</option>
+      <option value="size">Sort: Size</option>
+      <option value="region">Sort: Region</option>
+      <option value="version">Sort: Version</option>
+    </select>
+    <button class="btn secondary" id="loadFileBtn">📁 Load GAMES.json</button>
+    <button class="btn" id="exportBtn">⬇ Export Enriched JSON</button>
+    <span class="stat" id="stat">Loading…</span>
+  </div>
+  <input type="file" id="fileInput" accept=".json" hidden>
+</header>
+
+<div class="grid" id="grid"></div>
+
+<div class="modal-backdrop" id="modal">
+  <div class="modal">
+    <div class="modal-head">
+      <img id="mCover" alt="">
+      <div class="info">
+        <h2 id="mTitle"></h2>
+        <div class="g" id="mGenre"></div>
+        <div class="d" id="mDesc"></div>
+      </div>
+    </div>
+    <div class="modal-body" id="mBody"></div>
+    <div class="modal-actions">
+      <button class="btn secondary" id="mClose">Close</button>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+/* ---------- Genre / Publisher / Description lookup ----------
+   Auto-derived for popular titles. Everything else falls back
+   to a generic placeholder. You can expand this table freely. */
+const META = {
+  "A Hat in Time":               { genre:"Platformer / Action-Adventure", publisher:"Gears for Breakfast", desc:"A cute-as-heck 3D platformer about a small girl with a big top hat, stitching together Time Pieces across whimsical worlds." },
+  "A Monster's Expedition":      { genre:"Puzzle",                        publisher:"Draknek",             desc:"An open-world puzzle game about pushing trees around and exploring a mysterious archipelago." },
+  "A Plague Tale: Innocence":    { genre:"Action-Adventure / Stealth",    publisher:"Focus Home",          desc:"Follow Amicia and her brother Hugo through a plague-ravaged 14th-century France while fleeing the Inquisition." },
+  "A Short Hike":                { genre:"Adventure / Exploration",       publisher:"whitethorn games",    desc:"A cozy exploration game about hiking up a mountain and meeting friendly folks along the way." },
+  "A Way Out":                   { genre:"Action-Adventure / Co-op",      publisher:"EA",                  desc:"A co-op-only prison-break story about two men escaping and staying free together." },
+  "ABZU":                        { genre:"Adventure / Relaxing",          publisher:"505 Games",           desc:"A breathtaking underwater journey from the art director of Journey and Flower." },
+  "ACE COMBAT™ 7: SKIES UNKNOWN":{ genre:"Flight Action",                 publisher:"Bandai Namco",        desc:"Take to the skies in a new installment of the long-running Ace Combat franchise." },
+  "ADR1FT":                      { genre:"Survival / Space",              publisher:"505 Games",           desc:"Stranded in orbit after a catastrophic accident, survive the void with only your wits." },
+  "ARK: Survival Evolved":       { genre:"Survival / Open-World",         publisher:"Studio Wildcard",     desc:"Stranded on a mysterious island, tame dinosaurs and build to survive." },
+  "ARMORED CORE™ VI FIRES OF RUBICON™":{ genre:"Mech Action",            publisher:"FromSoftware",        desc:"Fast-paced mech combat from the creators of Dark Souls and Elden Ring." },
+  "ASTRONEER":                   { genre:"Survival / Sandbox",            publisher:"System Era",          desc:"Explore and reshape distant planets in this interplanetary survival sandbox." },
+  "AVICII Invector":             { genre:"Rhythm",                        publisher:"Wired Productions",   desc:"A rhythm game built around the music of Avicii." },
+  "Absolute Drift":              { genre:"Racing / Drift",                publisher:"Funselektor",         desc:"A minimalist drift racing game about mastering the art of sliding." },
+  "Ace Attorney Investigations Collection":{ genre:"Adventure / Visual Novel", publisher:"Capcom",         desc:"Investigative visual novels starring Miles Edgeworth." },
+  "Alan Wake":                   { genre:"Action / Horror",               publisher:"Remedy",              desc:"A psychological thriller about a writer whose stories come to life." },
+  "Alien: Isolation™":           { genre:"Horror / Stealth",              publisher:"SEGA",                desc:"Survive the terrifying Xenomorph aboard Sevastopol Station." },
+  "Amnesia Collection":          { genre:"Horror",                        publisher:"Frictional",          desc:"The classic first-person horror games that redefined the genre." },
+  "Amnesia: Rebirth":            { genre:"Horror / Adventure",            publisher:"Frictional",          desc:"A new descent into the depths of fear from the creators of Amnesia." },
+  "Amnesia: The Bunker":         { genre:"Horror / Survival",             publisher:"Frictional",          desc:"A semi-open-world survival horror set in a WWI bunker." },
+  "Amplitude":                   { genre:"Rhythm",                        publisher:"Harmonix",            desc:"A fast-paced music rhythm game with a soundtrack of electronic tracks." },
+  "Ancestors Legacy":            { genre:"Strategy / RTS",                publisher:"Destructive Creations", desc:"Squad-based real-time strategy set in the Middle Ages." },
+  "Ancestors: The Humankind Odyssey":{ genre:"Survival / Adventure",      publisher:"Private Division",    desc:"Survive and evolve as early hominids across millions of years." },
+  "Another World":               { genre:"Platformer / Adventure",        publisher:"The Digital Lounge",  desc:"The classic cinematic platformer that inspired a generation." },
+  "Ashen":                       { genre:"Action RPG",                    publisher:"Annapurna",           desc:"A souls-like about a wanderer seeking a home in a sunless world." },
+  "Assassin’s Creed® Chronicles Trilogy":{ genre:"Action-Adventure / Stealth", publisher:"Ubisoft",        desc:"Three standalone stories set in China, India and Russia." },
+  "Assassin's Creed® III":       { genre:"Action-Adventure",              publisher:"Ubisoft",             desc:"Play as Connor in the American Revolution." },
+  "Assassin's Creed® IV Black Flag":{ genre:"Action-Adventure / Open-World", publisher:"Ubisoft",          desc:"Pirate open-world adventure in the Golden Age of Piracy." },
+  "Assassin's Creed® Mirage":    { genre:"Action-Adventure / Stealth",    publisher:"Ubisoft",             desc:"Return to the roots as Basim in 9th-century Baghdad." },
+  "Assassin's Creed® Odyssey":   { genre:"Action RPG / Open-World",       publisher:"Ubisoft",             desc:"Explore Ancient Greece as a mercenary in a vast open world." },
+  "Assassin's Creed® Origins":   { genre:"Action RPG / Open-World",       publisher:"Ubisoft",             desc:"Witness the birth of the Assassin Brotherhood in Ancient Egypt." },
+  "Assassin's Creed® Rogue":     { genre:"Action-Adventure",              publisher:"Ubisoft",             desc:"Play as an Assassin-turned-Templar in the Seven Years' War." },
+  "Assassin's Creed® Syndicate": { genre:"Action-Adventure / Open-World", publisher:"Ubisoft",             desc:"Liberate Victorian London as Jacob and Evie Frye." },
+  "Assassin's Creed The Ezio Collection":{ genre:"Action-Adventure",      publisher:"Ubisoft",             desc:"Three remastered adventures of Ezio Auditore." },
+  "Assassin's Creed® Unity":     { genre:"Action-Adventure",              publisher:"Ubisoft",             desc:"Paris during the French Revolution, with co-op assassinations." },
+  "Assassin's Creed® Valhalla":  { genre:"Action RPG / Open-World",       publisher:"Ubisoft",             desc:"Lead a Viking clan in 9th-century England." },
+  "Assetto Corsa":               { genre:"Racing / Sim",                  publisher:"Kunos",               desc:"A hardcore racing simulator with laser-scanned tracks." },
+  "Assetto Corsa Competizione":  { genre:"Racing / Sim",                  publisher:"Kunos",               desc:"Official Blancpain GT Series racing simulator." },
+  "Atari Flashback Classics vol.1":{ genre:"Retro Compilation",           publisher:"Atari",               desc:"Classic Atari 2600 and arcade games in one collection." },
+  "Atari Flashback Classics vol.2":{ genre:"Retro Compilation",           publisher:"Atari",               desc:"More classic Atari 2600 and arcade titles." },
+  "Atari Flashback Classics vol.3":{ genre:"Retro Compilation",           publisher:"Atari",               desc:"The third volume of classic Atari games." },
+  "Atomfall":                    { genre:"Survival / Action",             publisher:"Rebellion",           desc:"A post-apocalyptic survival-action game set in the British countryside." },
+  "Atomic Heart":                { genre:"FPS / Action RPG",              publisher:"Mundfish",            desc:"A brutal FPS set in an alternate-history Soviet utopia gone wrong." },
+  "Attack On Titan 2":           { genre:"Action / Musou",                publisher:"Koei Tecmo",          desc:"Fight Titans and relive the anime's story." },
+  "Attack on Titan":             { genre:"Action / Musou",                publisher:"Koei Tecmo",          desc:"The first game adaptation of the hit anime." },
+  "Axiom Verge":                 { genre:"Metroidvania",                  publisher:"Thomas Happ",         desc:"A retro-styled sci-fi metroidvania." },
+  "Axiom Verge 2":               { genre:"Metroidvania",                  publisher:"Thomas Happ",         desc:"A sequel that expands the universe in new directions." },
+  "BALAN WONDERWORLD":           { genre:"Platformer / Action",           publisher:"Square Enix",         desc:"A whimsical 3D platformer from the creators of Sonic." },
+  "BATMAN™: ARKHAM KNIGHT":      { genre:"Action-Adventure / Open-World", publisher:"WB Games",            desc:"The epic conclusion to Rocksteady's Batman trilogy." },
+  "BATTLESHIP®":                 { genre:"Strategy / Board Game",         publisher:"Ubisoft",             desc:"Digital adaptation of the classic naval combat game." },
+  "BELOW":                       { genre:"Roguelike / Adventure",         publisher:"Capybara",            desc:"A vast, dark roguelike about exploring a procedurally generated underworld." },
+  "BUTCHER":                     { genre:"Shooter / Platformer",          publisher:"Transhuman Design",   desc:"A 2D shooter where you play a cyborg on a rampage." },
+  "Back to Bed":                 { genre:"Puzzle",                        publisher:"Bedtime Digital",     desc:"A surreal puzzle game about guiding a sleepwalker home." },
+  "Backbone":                    { genre:"Adventure / Noir",              publisher:"Raw Fury",            desc:"A noir detective adventure starring a raccoon PI." },
+  "Bad North":                   { genre:"Strategy / Roguelike",          publisher:"Raw Fury",            desc:"A minimalist real-time tactics game about defending islands from Vikings." },
+  "Balatro":                     { genre:"Roguelike Deckbuilder",         publisher:"Playstack",           desc:"A poker-inspired roguelike deckbuilder that became a phenomenon." },
+  "Baldur's Gate: Dark Alliance II":{ genre:"Action RPG",                 publisher:"Interplay",           desc:"The classic co-op action RPG returns." },
+  "Baldur's Gate and Baldur's Gate II":{ genre:"RPG",                     publisher:"Beamdog",             desc:"Enhanced editions of the legendary D&D RPGs." },
+  "Batman: Arkham Asylum":       { genre:"Action-Adventure",              publisher:"WB Games",            desc:"The groundbreaking game that defined superhero games." },
+  "Batman: Arkham City":         { genre:"Action-Adventure / Open-World", publisher:"WB Games",            desc:"Batman returns to a walled-off section of Gotham." },
+  "Battlefield™ 1":              { genre:"FPS",                           publisher:"EA",                  desc:"WWI multiplayer shooter with immersive campaigns." },
+  "Battlefield 4™":              { genre:"FPS",                           publisher:"EA",                  desc:"Modern military shooter with large-scale destruction." },
+  "Battlefield™ Hardline":       { genre:"FPS",                           publisher:"EA",                  desc:"Cops-and-robbers twist on the Battlefield formula." },
+  "Battlefield™ V":              { genre:"FPS",                           publisher:"EA",                  desc:"WWII multiplayer shooter with the series' signature scale." },
+  "Bayonetta":                   { genre:"Action / Character Action",     publisher:"SEGA",                desc:"The iconic witch with guns on her heels returns." },
+  "Beat Cop":                    { genre:"Adventure / Pixel",             publisher:"11 bit studios",      desc:"A pixel-art cop adventure set in 1980s NYC." },
+  "Bendy and the Dark Revival":  { genre:"Horror / Action",               publisher:"Joey Drew",           desc:"Survival horror sequel to Bendy and the Ink Machine." },
+  "Bendy and the Ink Machine":   { genre:"Horror / Puzzle",               publisher:"Joey Drew",           desc:"A horror puzzle game set in a 1930s cartoon studio gone wrong." },
+  "Beyond: Two Souls™":          { genre:"Interactive Drama",            publisher:"Quantic Dream",       desc:"A supernatural drama starring Ellen Page and Willem Dafoe." },
+  "BioShock: The Collection":    { genre:"FPS / Immersive Sim",           publisher:"2K",                  desc:"Remastered BioShock trilogy." },
+  "Biomutant":                   { genre:"Action RPG / Open-World",       publisher:"THQ Nordic",          desc:"A post-apocalyptic kung-fu fable with a furry protagonist." },
+  "Bioshock Infinite":           { genre:"FPS / Immersive Sim",           publisher:"2K",                  desc:"A sky-city voyage through American exceptionalism." },
+  "Black Skylands":              { genre:"Action / Open-World",           publisher:"tinyBuild",           desc:"Sky-pirate open-world action game." },
+  "Blair Witch":                 { genre:"Horror",                        publisher:"Bloober Team",        desc:"A psychological horror game set in the Blair Witch universe." },
+  "Blasphemous":                 { genre:"Metroidvania / Souls-like",    publisher:"Team17",              desc:"A brutal gothic metroidvania set in Cvstodia." },
+  "Blasphemous 2":               { genre:"Metroidvania / Souls-like",    publisher:"Team17",              desc:"The sequel expands the gothic metroidvania formula." },
+  "Bloodborne™":                 { genre:"Action RPG / Souls-like",      publisher:"FromSoftware",        desc:"A gothic cosmic-horror masterpiece from FromSoftware." },
+  "Bonfire Peaks":               { genre:"Puzzle",                        publisher:"Draknek",             desc:"A voxel puzzle game about burning your belongings." },
+  "Borderlands®":                { genre:"FPS / Looter-Shooter",          publisher:"2K",                  desc:"The original cel-shaded looter-shooter." },
+  "Borderlands 2 + The Pre-Sequel":{ genre:"FPS / Looter-Shooter",        publisher:"2K",                  desc:"Two of the most beloved Borderlands games in one package." },
+  "Borderlands® 3":              { genre:"FPS / Looter-Shooter",          publisher:"2K",                  desc:"The biggest Borderlands adventure yet." },
+  "Bound":                       { genre:"Platformer / Artistic",         publisher:"SIE",                 desc:"A stylized platformer about a pregnant woman exploring her memories." },
+  "Braid":                       { genre:"Puzzle / Platformer",           publisher:"Number None",         desc:"A time-manipulation puzzle-platformer classic." },
+  "Bramble The Mountain King":   { genre:"Adventure / Horror",            publisher:"Maximum Games",       desc:"A dark Nordic adventure inspired by folklore." },
+  "Brawlhalla":                  { genre:"Platform Fighter",              publisher:"Ubisoft",             desc:"A free-to-play platform fighter with crossover characters." },
+  "Broforce":                    { genre:"Platformer / Action",           publisher:"Devolver",            desc:"An explosive 80s-action-movie parody." },
+  "Brotato":                     { genre:"Roguelike / Arena Shooter",     publisher:"Blobfish",            desc:"A top-down arena shooter roguelike with a potato hero." },
+  "Bugsnax":                     { genre:"Adventure / Comedy",            publisher:"Young Horses",        desc:"Catch strange half-bug half-snack creatures on an island." },
+  "Bulletstorm":                 { genre:"FPS / Action",                  publisher:"People Can Fly",      desc:"A loud, over-the-top skill-shot FPS." },
+  "Burnout Paradise":            { genre:"Racing / Open-World",           publisher:"EA",                  desc:"The classic open-world arcade racer remastered." },
+  "Bus Simulator 21":            { genre:"Simulation",                    publisher:"astragon",            desc:"Drive buses on realistic city routes." },
+  "CODE VEIN":                   { genre:"Action RPG / Souls-like",      publisher:"Bandai Namco",        desc:"Anime vampire souls-like with a buddy system." },
+  "CRISIS CORE: FINAL FANTASY VII":{ genre:"Action RPG",                  publisher:"Square Enix",         desc:"Zack Fair's story remastered for modern platforms." },
+  "Call Of The Sea":             { genre:"Adventure / Puzzle",            publisher:"Raw Fury",            desc:"A 1930s tropical adventure about a woman searching for her husband." },
+  "Call of Cthulhu":             { genre:"Adventure / Horror / RPG",      publisher:"Focus Home",          desc:"An investigative RPG in Lovecraft's universe." },
+  "Call of Duty®: Advanced Warfare":{ genre:"FPS",                        publisher:"Activision",          desc:"Near-future FPS with exoskeleton combat." },
+  "Call of Duty®: Black Ops 4":  { genre:"FPS",                           publisher:"Activision",          desc:"Blackout battle royale plus classic multiplayer." },
+  "Call of Duty® Black Ops 6":   { genre:"FPS",                           publisher:"Activision",          desc:"The latest Black Ops entry." },
+  "Call of Duty®: Black Ops Cold War":{ genre:"FPS",                      publisher:"Activision",          desc:"Cold War-era campaign and multiplayer." },
+  "Call of Duty®: Black Ops III":{ genre:"FPS",                           publisher:"Activision",          desc:"Future-set Black Ops with co-op campaign." },
+  "Call of Duty® Ghosts":        { genre:"FPS",                           publisher:"Activision",          desc:"Post-apocalyptic COD with a new cast." },
+  "Call of Duty®: Infinite Warfare":{ genre:"FPS",                        publisher:"Activision",          desc:"Space-set COD with a sci-fi campaign." },
+  "Call of Duty®: Modern Warfare® (2007)":{ genre:"FPS",                  publisher:"Activision",          desc:"The remaster of the classic Modern Warfare." },
+  "Call of Duty®: Modern Warfare®":{ genre:"FPS",                         publisher:"Activision",          desc:"The 2019 soft reboot of Modern Warfare." },
+  "Call of Duty®: Modern Warfare® 2 (2009)":{ genre:"FPS",                publisher:"Activision",          desc:"Remaster of the iconic MW2 campaign." },
+  "Call of Duty®: Modern Warfare II":{ genre:"FPS",                       publisher:"Activision",          desc:"Sequel to the 2019 Modern Warfare." },
+  "Call of Duty®: Modern Warfare III":{ genre:"FPS",                      publisher:"Activision",          desc:"Direct sequel to MWII." },
+  "Call of Duty®: Vanguard":     { genre:"FPS",                           publisher:"Activision",          desc:"WWII-set COD with a task force cast." },
+  "Call of Duty®: WWII":         { genre:"FPS",                           publisher:"Activision",          desc:"Return to WWII roots." },
+  "Carrion":                     { genre:"Metroidvania / Horror",         publisher:"Devolver",            desc:"A reverse-horror game where you play the monster." },
+  "Carto":                       { genre:"Puzzle / Adventure",            publisher:"Humble",              desc:"A cozy map-making puzzle adventure." },
+  "Catherine":                   { genre:"Puzzle / Adventure",            publisher:"Atlus",               desc:"A mature puzzle-adventure about love and nightmares." },
+  "Celeste":                     { genre:"Platformer",                    publisher:"Maddy Makes Games",   desc:"A challenging but heartfelt precision platformer." },
+  "Chained Echoes":              { genre:"JRPG",                          publisher:"Deck13",              desc:"A 16-bit-style JRPG with mechs and drama." },
+  "Chernobylite":                { genre:"Survival / Horror",             publisher:"All in! Games",       desc:"Survival horror in the Chernobyl Exclusion Zone." },
+  "Chess Ultra":                 { genre:"Board Game",                    publisher:"Ripstone",            desc:"A beautiful, feature-rich chess game." },
+  "Chicken Police":              { genre:"Adventure / Noir",              publisher:"HandyGames",          desc:"A noir detective adventure with animal characters." },
+  "Child of Light":              { genre:"RPG / Platformer",              publisher:"Ubisoft",             desc:"A poetic turn-based RPG painted in watercolor." },
+  "Chimparty™":                  { genre:"Party",                         publisher:"SIE",                 desc:"A PS4 PlayLink party game." },
+  "Cities: Skylines":            { genre:"City Builder",                  publisher:"Paradox",             desc:"The modern city-building classic." },
+  "Citizen Sleeper":             { genre:"RPG / Narrative",               publisher:"Fellow Traveller",    desc:"A tabletop-inspired RPG about survival on a space station." },
+  "Cocoon":                      { genre:"Puzzle / Adventure",            publisher:"Annapurna",           desc:"A world-bending puzzle adventure from the Limbo designer." },
+  "Coffee Talk Episode 2: Hibiscus ＆ Butterfly":{ genre:"Visual Novel",   publisher:"Toge",                desc:"A cozy beverage-brewing visual novel." },
+  "CoffeeTalk":                  { genre:"Visual Novel",                  publisher:"Toge",                desc:"A cozy late-night coffee chat visual novel." },
+  "Conan Exiles":                { genre:"Survival / Open-World",         publisher:"Funcom",              desc:"Survive in the brutal world of Conan." },
+  "Concrete Genie":              { genre:"Action-Adventure / Artistic",   publisher:"SIE",                 desc:"Paint graffiti to bring life back to your hometown." },
+  "Control":                     { genre:"Action / Metroidvania",         publisher:"505 Games",           desc:"A surreal third-person action game by Remedy." },
+  "Cook, Serve, Delicious! 3?!": { genre:"Simulation / Cooking",          publisher:"Vertigo",             desc:"A frantic cooking and management game." },
+  "Crash Bandicoot™ 4: It's About Time":{ genre:"Platformer",             publisher:"Activision",          desc:"The fourth mainline Crash platformer." },
+  "Crash Bandicoot N. Sane Trilogy":{ genre:"Platformer",                 publisher:"Activision",          desc:"Remakes of the first three Crash games." },
+  "Crash™ Team Racing Nitro-Fueled":{ genre:"Racing / Kart",              publisher:"Activision",          desc:"Remake of the beloved Crash kart racer." },
+  "Creature in the Well":        { genre:"Action / Dungeon Crawler",      publisher:"Flight School",       desc:"A pinball-inspired dungeon crawler." },
+  "Cricket 24":                  { genre:"Sports / Cricket",             publisher:"Big Ant",             desc:"Official cricket simulation." },
+  "Crossing Souls":              { genre:"Action-Adventure",              publisher:"Devolver",            desc:"A 1980s coming-of-age adventure." },
+  "Crow Country":                { genre:"Survival Horror",               publisher:"SFB Games",           desc:"A PS1-style survival horror set in an abandoned theme park." },
+  "Crypt of the Necrodancer":    { genre:"Rhythm / Roguelike",            publisher:"Brace Yourself",      desc:"A rhythm-based dungeon crawler." },
+  "Crysis®":                     { genre:"FPS",                           publisher:"Crytek",              desc:"The classic nanosuit FPS remastered." },
+  "Crysis2®":                    { genre:"FPS",                           publisher:"Crytek",              desc:"Urban warfare with the nanosuit in NYC." },
+  "Crysis3®":                    { genre:"FPS",                           publisher:"Crytek",              desc:"Bow-and-nanosuit jungle combat." },
+  "Cult of the Lamb":            { genre:"Roguelike / Management",        publisher:"Devolver",            desc:"Build a cult of cute woodland creatures." },
+  "Cuphead":                     { genre:"Run and Gun / Boss Rush",       publisher:"Studio MDHR",         desc:"A 1930s-cartoon-style run-and-gun boss rush." },
+  "Cyberpunk 2077":              { genre:"Action RPG / Open-World",       publisher:"CD Projekt",          desc:"A massive open-world RPG set in Night City." },
+  "DARK SOULS™":                 { genre:"Action RPG / Souls-like",      publisher:"FromSoftware",        desc:"The remaster of the legendary first Dark Souls." },
+  "DARK SOULS™ II":              { genre:"Action RPG / Souls-like",      publisher:"FromSoftware",        desc:"Scholar of the First Sin edition." },
+  "DARK SOULS™ III":             { genre:"Action RPG / Souls-like",      publisher:"FromSoftware",        desc:"The acclaimed conclusion to the trilogy." },
+  "DAVE THE DIVER":              { genre:"Adventure / Management",        publisher:"Mintrocket",          desc:"Dive by day, run a sushi restaurant by night." },
+  "DAYS GONE":                   { genre:"Action-Adventure / Open-World", publisher:"SIE",                 desc:"Open-world zombie survival in the Oregon wilderness." },
+  "DEAD RISING":                 { genre:"Action / Survival",             publisher:"Capcom",              desc:"The original Dead Rising remastered." },
+  "DEATH STRANDING™":            { genre:"Action / Adventure",            publisher:"SIE",                 desc:"Kojima's genre-defying delivery adventure." },
+  "DIRT 5™":                     { genre:"Racing",                        publisher:"Codemasters",         desc:"Arcade off-road racing with a star-studded campaign." },
+  "DOOM (1993)":                 { genre:"FPS",                           publisher:"Bethesda",            desc:"The original DOOM, remastered." },
+  "DOOM":                        { genre:"FPS",                           publisher:"Bethesda",            desc:"The 2016 reboot of the demon-slaying classic." },
+  "DOOM 2 (1994)":               { genre:"FPS",                           publisher:"Bethesda",            desc:"The classic Hell on Earth sequel." },
+  "DOOM Eternal":                { genre:"FPS",                           publisher:"Bethesda",            desc:"The fast-paced sequel to DOOM 2016." },
+  "DRAGON BALL FighterZ":        { genre:"Fighting",                      publisher:"Bandai Namco",        desc:"2.5D Dragon Ball fighting by Arc System Works." },
+  "DRAGON BALL XENOVERSE":       { genre:"Action RPG / Fighting",         publisher:"Bandai Namco",        desc:"Create your own Dragon Ball fighter." },
+  "DRAGON BALL XENOVERSE 2":     { genre:"Action RPG / Fighting",         publisher:"Bandai Namco",        desc:"The expanded sequel with more races and story." },
+  "DRAGON BALL Z: KAKAROT":      { genre:"Action RPG",                    publisher:"Bandai Namco",        desc:"Open-world retelling of the Dragon Ball Z saga." },
+  "DRAGON QUEST BUILDERS":       { genre:"Action RPG / Builder",          publisher:"Square Enix",         desc:"Minecraft-style building in the Dragon Quest universe." },
+  "DRAGON QUEST BUILDERS 2":     { genre:"Action RPG / Builder",          publisher:"Square Enix",         desc:"Co-op building and RPG adventure." },
+  "DRAGON QUEST HEROES II":      { genre:"Action RPG / Musou",            publisher:"Square Enix",         desc:"Musou-style Dragon Quest action." },
+  "DRAGON QUEST HEROES: The World Tree's Woe and the Blight Below":{ genre:"Action RPG / Musou", publisher:"Square Enix", desc:"Musou spin-off of Dragon Quest." },
+  "DRAGON QUEST XI: Echoes of an Elusive Age":{ genre:"JRPG",             publisher:"Square Enix",         desc:"A modern classic JRPG." },
+  "DRAGON QUEST XI S: Echoes of an Elusive Age":{ genre:"JRPG",           publisher:"Square Enix",         desc:"Definitive edition with extra content." },
+  "DREDGE":                      { genre:"Fishing / Horror",              publisher:"Team17",              desc:"A fishing adventure with a Lovecraftian twist." },
+  "DRIVECLUB™":                  { genre:"Racing",                        publisher:"SIE",                 desc:"The PS4-exclusive club-based racer." },
+  "Dandara":                     { genre:"Metroidvania",                  publisher:"Raw Fury",            desc:"A gravity-bending metroidvania." },
+  "Dangerous Golf":              { genre:"Sports / Comedy",               publisher:"Three Fields",        desc:"A destructive golf game with a mansion setting." },
+  "Darksiders":                  { genre:"Action-Adventure",              publisher:"THQ Nordic",          desc:"Play War, one of the Four Horsemen." },
+  "Darksiders Genesis":          { genre:"Action RPG",                    publisher:"THQ Nordic",          desc:"Top-down co-op Darksiders." },
+  "Darksiders II":               { genre:"Action RPG",                    publisher:"THQ Nordic",          desc:"Play Death in this larger sequel." },
+  "Darksiders III":              { genre:"Action RPG / Souls-like",      publisher:"THQ Nordic",          desc:"Play Fury in a souls-like Darksiders." },
+  "Darkwood":                    { genre:"Horror / Survival",             publisher:"Acid Wizard",         desc:"A top-down survival horror without jump scares." },
+  "Day of the Tentacle":         { genre:"Adventure / Point-and-Click",   publisher:"Double Fine",         desc:"Classic LucasArts comedy adventure remastered." },
+  "Dead Cells":                  { genre:"Roguelike / Metroidvania",      publisher:"Motion Twin",         desc:"A fast-paced roguelike metroidvania." },
+  "Dead Island":                 { genre:"Action RPG / Zombie",           publisher:"Deep Silver",         desc:"Open-world zombie survival on a tropical island." },
+  "Dead Island 2":               { genre:"Action RPG / Zombie",           publisher:"Deep Silver",         desc:"The long-awaited zombie sequel." },
+  "Dead Island: Riptide":        { genre:"Action RPG / Zombie",           publisher:"Deep Silver",         desc:"Direct sequel to Dead Island." },
+  "Dead Nation™":                { genre:"Twin-Stick Shooter / Zombie",   publisher:"SIE",                 desc:"Top-down zombie shooter from Housemarque." },
+  "Dead Rising 2":               { genre:"Action / Survival",             publisher:"Capcom",              desc:"Dead Rising 2 remastered." },
+  "Dead Rising 2: Off The Record":{ genre:"Action / Survival",            publisher:"Capcom",              desc:"Frank West's version of Dead Rising 2." },
+  "Dead Rising 4: Frank's Big Package":{ genre:"Action / Survival",       publisher:"Capcom",              desc:"Complete edition of Dead Rising 4." },
+  "Deadlight":                   { genre:"Platformer / Horror",           publisher:"Tequila Works",       desc:"A cinematic zombie apocalypse platformer." },
+  "Deadpool":                    { genre:"Action-Adventure",              publisher:"Activision",          desc:"The merc with a mouth in his own game." },
+  "Death's Door":                { genre:"Action-Adventure / Zelda-like", publisher:"Devolver",            desc:"A crow's job of collecting souls." },
+  "Deep Rock Galactic":          { genre:"Co-op FPS / Mining",            publisher:"Coffee Stain",        desc:"Dwarves mining in procedurally generated caves." },
+  "Despot's Game":               { genre:"Roguelike / Auto-battler",      publisher:"tinyBuild",           desc:"Auto-battler with a dark sense of humor." },
+  "Destroy All Humans!":         { genre:"Action-Adventure",              publisher:"THQ Nordic",          desc:"Alien invasion comedy remake." },
+  "Destroy All Humans! 2":       { genre:"Action-Adventure",              publisher:"THQ Nordic",          desc:"Sequel with 1960s spy parody." },
+  "Detroit: Become Human™":      { genre:"Interactive Drama",            publisher:"Quantic Dream",       desc:"Androids fighting for freedom in near-future Detroit." },
+  "Deus Ex: Mankind Divided™":   { genre:"Immersive Sim / Action RPG",   publisher:"Square Enix",         desc:"Cyberpunk immersive sim." },
+  "Devil May Cry 4":             { genre:"Action / Character Action",     publisher:"Capcom",              desc:"Special Edition of DMC4." },
+  "Devil May Cry 5":             { genre:"Action / Character Action",     publisher:"Capcom",              desc:"Stylish demon-slaying action." },
+  "Devil May Cry™ Trilogy":      { genre:"Action / Character Action",     publisher:"Capcom",              desc:"The first three DMC games remastered." },
+  "DiRT Rally":                  { genre:"Racing / Sim",                  publisher:"Codemasters",         desc:"Hardcore rally simulation." },
+  "DiRT Rally 2.0":              { genre:"Racing / Sim",                  publisher:"Codemasters",         desc:"The expanded rally sim sequel." },
+  "Diablo® II":                  { genre:"Action RPG",                    publisher:"Blizzard",            desc:"Resurrected classic ARPG." },
+  "Diablo III: Reaper of Souls": { genre:"Action RPG",                    publisher:"Blizzard",            desc:"Diablo III with the Reaper of Souls expansion." },
+  "Disc Jam™":                   { genre:"Sports / Arcade",               publisher:"High Horse",          desc:"A fast-paced disc-throwing sport." },
+  "Disco Elysium":               { genre:"RPG / Narrative",               publisher:"ZA/UM",               desc:"A groundbreaking detective RPG." },
+  "Dishonored®":                 { genre:"Immersive Sim / Stealth",       publisher:"Bethesda",            desc:"Play as a supernatural assassin." },
+  "Dishonored 2":                { genre:"Immersive Sim / Stealth",       publisher:"Bethesda",            desc:"Play as Emily or Corvo." },
+  "Dishonored®: Death of the Outsider™":{ genre:"Immersive Sim / Stealth",publisher:"Bethesda",            desc:"Standalone expansion with Billie Lurk." },
+  "Disney Epic Mickey":          { genre:"Platformer / Adventure",        publisher:"Disney",              desc:"Mickey's adventure in a twisted Disney world." },
+  "Divinity: Original Sin":      { genre:"CRPG",                          publisher:"Larian",              desc:"The classic co-op CRPG." },
+  "Divinity: Original Sin 2":    { genre:"CRPG",                          publisher:"Larian",              desc:"The acclaimed sequel, now on console." },
+  "DmC Devil May Cry™":          { genre:"Action / Character Action",     publisher:"Capcom",              desc:"Ninja Theory's reboot of DMC." },
+  "Doki Doki Literature Club":   { genre:"Visual Novel / Horror",         publisher:"Team Salvato",        desc:"A visual novel with a dark twist." },
+  "Don't Starve Together":       { genre:"Survival / Co-op",              publisher:"Klei",                desc:"Co-op survival in a strange wilderness." },
+  "Doom 3":                      { genre:"FPS / Horror",                  publisher:"Bethesda",            desc:"Horror-focused Doom remaster." },
+  "Downwell":                    { genre:"Roguelike / Platformer",        publisher:"Devolver",            desc:"A vertical roguelike about falling into a well." },
+  "Dragon Age™: Inquisition":    { genre:"Action RPG / Open-World",       publisher:"EA",                  desc:"Bioware's expansive fantasy RPG." },
+  "Dragon's Dogma: Dark Arisen": { genre:"Action RPG / Open-World",       publisher:"Capcom",              desc:"Cult classic open-world action RPG." },
+  "Dreams™":                     { genre:"Creative / Sandbox",            publisher:"SIE",                 desc:"Create and play anything in Media Molecule's sandbox." },
+  "Dying Light 2: Stay Human":   { genre:"Action RPG / Zombie",           publisher:"Techland",            desc:"Parkour zombie survival in a ruined city." },
+  "Dying Light: The Following":  { genre:"Action RPG / Zombie",           publisher:"Techland",            desc:"Expanded edition with the buggy-filled countryside." },
+  "EA SPORTS FC 24":             { genre:"Sports / Football",             publisher:"EA",                  desc:"The successor to FIFA." },
+  "EA SPORTS FC 26":             { genre:"Sports / Football",             publisher:"EA",                  desc:"Latest EA football sim." },
+  "EA SPORTS™ UFC® 4":           { genre:"Sports / MMA",                  publisher:"EA",                  desc:"MMA simulation with realistic combat." },
+  "ELDEN RING™":                 { genre:"Action RPG / Souls-like",      publisher:"FromSoftware",        desc:"Open-world souls-like masterpiece." },
+  "ELDEN RING NIGHTREIGN":       { genre:"Action RPG / Co-op",            publisher:"FromSoftware",        desc:"Co-op standalone Elden Ring spin-off." },
+  "El Hijo":                     { genre:"Stealth / Adventure",           publisher:"HandyGames",          desc:"A spaghetti-western stealth adventure." },
+  "Eldest Souls":                { genre:"Action RPG / Boss Rush",        publisher:"United Label",        desc:"A pixel-art boss-rush souls-like." },
+  "Electrician":                 { genre:"Simulation",                    publisher:"Ultimate Games",      desc:"A job simulator about being an electrician." },
+  "Enter the Gungeon":           { genre:"Roguelike / Twin-Stick",        publisher:"Devolver",            desc:"A bullet-hell dungeon crawler." },
+  "Everybody's Gone To The Rapture™":{ genre:"Adventure / Walking Sim",   publisher:"SIE",                 desc:"A quiet, beautiful apocalypse story." },
+  "Evil West":                   { genre:"Action / Shooter",              publisher:"Focus Home",          desc:"Wild-west vampire-hunting action." },
+  "Exit the Gungeon":            { genre:"Roguelike / Platformer",        publisher:"Devolver",            desc:"A spin-off of Enter the Gungeon." },
+  "Expeditions: A Mudrunner Game":{ genre:"Simulation / Off-road",        publisher:"Focus Home",          desc:"Scientific off-road driving." },
+  "eFootball™":                  { genre:"Sports / Football",             publisher:"Konami",              desc:"Free-to-play successor to PES." },
+  "F.I.S.T.":                    { genre:"Metroidvania / Action",         publisher:"bilibili",            desc:"A dieselpunk metroidvania with a rabbit hero." },
+  "F1® 24":                      { genre:"Racing / Sim",                  publisher:"EA",                  desc:"Official F1 racing game." },
+  "FAR: Changing Tides":         { genre:"Adventure / Puzzle",            publisher:"Frontier",            desc:"A peaceful post-apocalyptic sailing adventure." },
+  "FAR: Lone Sails":             { genre:"Adventure / Puzzle",            publisher:"Mixtvision",          desc:"A meditative vehicle-journey game." },
+  "FEZ":                         { genre:"Puzzle / Platformer",           publisher:"Polytron",            desc:"A 2D/3D perspective-shifting puzzle platformer." },
+  "FINAL FANTASY":               { genre:"JRPG",                          publisher:"Square Enix",         desc:"The original Final Fantasy remastered." },
+  "FINAL FANTASY II":            { genre:"JRPG",                          publisher:"Square Enix",         desc:"The second Final Fantasy remastered." },
+  "FINAL FANTASY III":           { genre:"JRPG",                          publisher:"Square Enix",         desc:"The third Final Fantasy remastered." },
+  "FINAL FANTASY IV":            { genre:"JRPG",                          publisher:"Square Enix",         desc:"The fourth Final Fantasy remastered." },
+  "FINAL FANTASY IX":            { genre:"JRPG",                          publisher:"Square Enix",         desc:"The fan-favorite PS1-era FF remastered." },
+  "FINAL FANTASY V":             { genre:"JRPG",                          publisher:"Square Enix",         desc:"The fifth Final Fantasy remastered." },
+  "FINAL FANTASY VI":            { genre:"JRPG",                          publisher:"Square Enix",         desc:"The sixth Final Fantasy remastered." },
+  "FINAL FANTASY VII":           { genre:"JRPG",                          publisher:"Square Enix",         desc:"The legendary FFVII remastered." },
+  "FINAL FANTASY VII REMAKE":    { genre:"Action RPG",                    publisher:"Square Enix",         desc:"Reimagining of the classic FFVII." },
+  "FINAL FANTASY VIII":          { genre:"JRPG",                          publisher:"Square Enix",         desc:"FFVIII remastered." },
+  "FINAL FANTASY X/X-2":         { genre:"JRPG",                          publisher:"Square Enix",         desc:"HD remaster of FFX and X-2." },
+  "FINAL FANTASY Ⅻ THE ZODIAC AGE":{ genre:"JRPG",                        publisher:"Square Enix",         desc:"The Zodiac Age remaster." },
+  "FINAL FANTASY XV":            { genre:"Action RPG / Open-World",       publisher:"Square Enix",         desc:"Open-world road-trip RPG." },
+  "Fallout 4":                   { genre:"Action RPG / Open-World",       publisher:"Bethesda",            desc:"Post-apocalyptic Boston open-world RPG." },
+  "Far Cry® 3":                  { genre:"FPS / Open-World",              publisher:"Ubisoft",             desc:"The classic tropical FPS remastered." },
+  "Far Cry® 3 Blood Dragon":     { genre:"FPS",                           publisher:"Ubisoft",             desc:"80s neon-drenched FPS spin-off." },
+  "Far Cry® 4":                  { genre:"FPS / Open-World",              publisher:"Ubisoft",             desc:"Himalayan open-world FPS." },
+  "Far Cry® 5":                  { genre:"FPS / Open-World",              publisher:"Ubisoft",             desc:"Montana cult open-world FPS." },
+  "Far Cry® 6":                  { genre:"FPS / Open-World",              publisher:"Ubisoft",             desc:"Yara open-world FPS with Giancarlo Esposito." },
+  "Far Cry® New Dawn":           { genre:"FPS / Open-World",              publisher:"Ubisoft",             desc:"Post-apocalyptic Far Cry 5 spin-off." },
+  "Far Cry® Primal":             { genre:"FPS / Open-World",              publisher:"Ubisoft",             desc:"Stone Age Far Cry." },
+  "Farming Simulator 22":        { genre:"Simulation / Farming",          publisher:"GIANTS",              desc:"The leading farming simulation." },
+  "Fear The Spotlight":          { genre:"Horror / Adventure",            publisher:"Blumhouse",           desc:"A PS1-style teen horror adventure." },
+  "Fight'N Rage":                { genre:"Beat 'em Up",                   publisher:"sebagamesdev",        desc:"A modern retro beat 'em up." },
+  "Firewatch":                   { genre:"Adventure / Narrative",         publisher:"Campo Santo",         desc:"A narrative mystery in the Wyoming wilderness." },
+  "Fist of the North Star: Lost Paradise":{ genre:"Action-Adventure",     publisher:"SEGA",                desc:"Yakuza-style Fist of the North Star." },
+  "Five Nights at Freddy's":     { genre:"Horror / Survival",             publisher:"Scott Cawthon",       desc:"The original FNAF." },
+  "Five Nights at Freddy's 2":   { genre:"Horror / Survival",             publisher:"Scott Cawthon",       desc:"More animatronic terror." },
+  "Five Nights at Freddy's 3":   { genre:"Horror / Survival",             publisher:"Scott Cawthon",       desc:"The third FNAF." },
+  "Five Nights at Freddy's 4":   { genre:"Horror / Survival",             publisher:"Scott Cawthon",       desc:"The fourth FNAF." },
+  "Five Nights at Freddy's Into the Pit":{ genre:"Horror / Adventure",    publisher:"Mega Cat",            desc:"A pixel-art FNAF spin-off." },
+  "Five Nights at Freddy's: Sister Location":{ genre:"Horror / Survival", publisher:"Scott Cawthon",       desc:"FNAF spin-off with a new location." },
+  "FlatOut 4: Total Insanity":   { genre:"Racing / Destruction",          publisher:"Strategy First",      desc:"Arcade destruction racing." },
+  "Floor Kids":                  { genre:"Rhythm",                        publisher:"MERJ Media",          desc:"A breakdancing rhythm game." },
+  "Flower":                      { genre:"Adventure / Relaxing",          publisher:"SIE",                 desc:"Thatgamecompany's serene flower-petal journey." },
+  "For The King":                { genre:"Roguelike / Strategy",          publisher:"Curve Digital",       desc:"Tabletop-style roguelike adventure." },
+  "Frantics™":                   { genre:"Party",                         publisher:"SIE",                 desc:"A PlayLink party game." },
+  "Frostpunk":                   { genre:"City Builder / Survival",       publisher:"11 bit studios",      desc:"A society survival game in a frozen world." },
+  "Furi":                        { genre:"Action / Boss Rush",            publisher:"The Game Bakers",     desc:"A stylish boss-rush action game." },
+  "flOw":                        { genre:"Adventure / Relaxing",          publisher:"SIE",                 desc:"Thatgamecompany's first relaxing game." },
+  "GONNER2":                     { genre:"Roguelike / Platformer",        publisher:"Raw Fury",            desc:"A sequel to GoNNER." },
+  "GRAVITY RUSH™ 2":             { genre:"Action-Adventure",              publisher:"SIE",                 desc:"Gravity-shifting action sequel." },
+  "GRID Legends":                { genre:"Racing",                        publisher:"Codemasters",         desc:"Story-driven racing game." },
+  "GRIS":                        { genre:"Platformer / Artistic",         publisher:"Devolver",            desc:"A beautiful, wordless platformer about grief." },
+  "Gang Beasts":                 { genre:"Party / Physics",               publisher:"Boneloaf",            desc:"Ragdoll party brawler." },
+  "Ghost of Tsushima":           { genre:"Action-Adventure / Open-World", publisher:"SIE",                 desc:"Samurai open-world epic." },
+  "Ghostbusters: Spirits Unleashed":{ genre:"Action / Co-op",             publisher:"IllFonic",            desc:"4v1 Ghostbusters co-op game." },
+  "Ghostbusters: The Video Game":{ genre:"Action-Adventure",              publisher:"Mad Dog",             desc:"Remastered Ghostbusters game with original cast." },
+  "Ghostrunner":                 { genre:"Action / Platformer",           publisher:"505 Games",           desc:"Cyberpunk first-person parkour action." },
+  "GoNNER":                      { genre:"Roguelike / Platformer",        publisher:"Raw Fury",            desc:"A stylish roguelike platformer." },
+  "Goat Simulator":              { genre:"Sandbox / Comedy",              publisher:"Coffee Stain",        desc:"The buggy goat sandbox." },
+  "God of War":                  { genre:"Action-Adventure",              publisher:"SIE",                 desc:"Norse reboot of the God of War series." },
+  "God of War® III":             { genre:"Action-Adventure",              publisher:"SIE",                 desc:"Remaster of the Greek saga's finale." },
+  "God of War Ragnarök":         { genre:"Action-Adventure",              publisher:"SIE",                 desc:"The Norse saga's epic conclusion." },
+  "Going Under":                 { genre:"Roguelike / Action",            publisher:"Team17",              desc:"An intern fighting monsters in a cursed startup." },
+  "Golf Club Wasteland":         { genre:"Sports / Narrative",            publisher:"Untold Tales",        desc:"Golf on a post-apocalyptic Earth." },
+  "Gone Home":                   { genre:"Adventure / Narrative",         publisher:"Fullbright",          desc:"A 1990s house-exploration narrative game." },
+  "Gran Turismo™ 7":             { genre:"Racing / Sim",                  publisher:"SIE",                 desc:"The latest GT racing sim." },
+  "Gran Turismo® 7":             { genre:"Racing / Sim",                  publisher:"SIE",                 desc:"US version of GT7." },
+  "Gran Turismo™SPORT":          { genre:"Racing / Sim",                  publisher:"SIE",                 desc:"Online-focused GT." },
+  "Grand Theft Auto V":          { genre:"Action-Adventure / Open-World", publisher:"Rockstar",            desc:"Open-world crime epic." },
+  "Gravity Rush™":               { genre:"Action-Adventure",              publisher:"SIE",                 desc:"Gravity-shifting action remaster." },
+  "Grim Fandango":               { genre:"Adventure / Point-and-Click",   publisher:"Double Fine",         desc:"Classic LucasArts afterlife adventure remastered." },
+  "Grounded":                    { genre:"Survival / Co-op",              publisher:"Xbox Game Studios",   desc:"Shrunk in a backyard survival game." },
+  "Grow Home":                   { genre:"Adventure / Physics",           publisher:"Ubisoft",             desc:"Climb a giant plant as a wobbly robot." },
+  "Guacamelee!":                 { genre:"Metroidvania / Beat 'em Up",    publisher:"DrinkBox",            desc:"Luchador metroidvania." },
+  "Guacamelee! 2":               { genre:"Metroidvania / Beat 'em Up",    publisher:"DrinkBox",            desc:"The expanded luchador sequel." },
+  "Guilty Gear -Strive-":        { genre:"Fighting",                      publisher:"Arc System Works",    desc:"Stylish 2D fighting with gorgeous animation." },
+  "HEAVY RAIN™":                 { genre:"Interactive Drama",            publisher:"Quantic Dream",       desc:"The origami killer interactive drama." },
+  "HITMAN 3":                    { genre:"Stealth / Sandbox",             publisher:"IO Interactive",      desc:"The conclusion of the World of Assassination trilogy." },
+  "HOT WHEELS UNLEASHED™ 2 - Turbocharged":{ genre:"Racing",              publisher:"Milestone",           desc:"Hot Wheels arcade racing sequel." },
+  "HUMANITY":                    { genre:"Puzzle / Action",               publisher:"Enhance",             desc:"A surreal puzzle game where you lead a crowd of humans." },
+  "Hades":                       { genre:"Roguelike / Action",            publisher:"Supergiant",          desc:"A rogue-lite dungeon crawler from Supergiant." },
+  "Heavenly Bodies":             { genre:"Puzzle / Physics",              publisher:"2pt",                 desc:"A zero-gravity physics puzzle game." },
+  "Hellblade: Senua's Sacrifice™":{ genre:"Action / Narrative",           publisher:"Ninja Theory",        desc:"A powerful portrayal of psychosis through Norse myth." },
+  "Helldivers":                  { genre:"Twin-Stick Shooter / Co-op",    publisher:"SIE",                 desc:"Top-down co-op sci-fi shooter." },
+  "Hello Neighbor":              { genre:"Stealth / Horror",              publisher:"tinyBuild",           desc:"Sneak into your neighbor's house." },
+  "Hello Neighbor 2":            { genre:"Stealth / Horror",              publisher:"tinyBuild",           desc:"Sequel with an AI-driven neighbor." },
+  "Hello Neighbor: Hide And Seek":{ genre:"Stealth / Horror",             publisher:"tinyBuild",           desc:"Prequel to Hello Neighbor." },
+  "High on Life":                { genre:"FPS / Comedy",                  publisher:"Squanch Games",       desc:"A talking-gun FPS from Justin Roiland." },
+  "Hitman: Absolution":          { genre:"Stealth / Action",              publisher:"IO Interactive",      desc:"More linear Hitman entry." },
+  "Hitman: Blood Money":         { genre:"Stealth / Action",              publisher:"IO Interactive",      desc:"Classic Hitman remastered." },
+  "Hitman GO":                   { genre:"Puzzle / Strategy",             publisher:"Square Enix",         desc:"Turn-based Hitman puzzle game." },
+  "Hogwarts Legacy":             { genre:"Action RPG / Open-World",       publisher:"WB Games",            desc:"Open-world Harry Potter RPG." },
+  "Hollow Knight":               { genre:"Metroidvania",                  publisher:"Team Cherry",         desc:"A hauntingly beautiful metroidvania." },
+  "Hollow Knight: Silksong":     { genre:"Metroidvania",                  publisher:"Team Cherry",         desc:"The long-awaited sequel starring Hornet." },
+  "Horizon Forbidden West":      { genre:"Action RPG / Open-World",       publisher:"SIE",                 desc:"Aloy's western journey." },
+  "Horizon Zero Dawn™":          { genre:"Action RPG / Open-World",       publisher:"SIE",                 desc:"Robot-dinosaur open-world RPG." },
+  "Hotline Miami":               { genre:"Top-Down Shooter",              publisher:"Devolver",            desc:"A brutal neon-soaked shooter." },
+  "Hotline Miami 2: Wrong Number":{ genre:"Top-Down Shooter",             publisher:"Devolver",            desc:"The larger, bloodier sequel." },
+  "Human Fall Flat":             { genre:"Puzzle / Physics",              publisher:"Curve Digital",       desc:"A wobbly physics puzzle game." },
+  "Hyper Light Drifter":         { genre:"Action RPG / Metroidvania",     publisher:"Heart Machine",       desc:"A pixel-art action RPG." },
+  "I am Bread":                  { genre:"Simulation / Comedy",           publisher:"Bossa",               desc:"A physics game about being a slice of bread." },
+  "INSIDE":                      { genre:"Platformer / Puzzle",           publisher:"Playdead",            desc:"A dark, atmospheric puzzle platformer." },
+  "Injustice 2":                 { genre:"Fighting",                      publisher:"WB Games",            desc:"DC fighting with a gear system." },
+  "Inscryption":                 { genre:"Roguelike / Card Game / Horror",publisher:"Devolver",            desc:"A genre-bending card game with dark secrets." },
+  "Inside My Radio":             { genre:"Rhythm / Platformer",           publisher:"Seaven Studio",       desc:"A rhythm-based platformer." },
+  "It Takes Two":                { genre:"Action-Adventure / Co-op",      publisher:"Hazelight",           desc:"A co-op-only adventure about a couple's divorce." },
+  "inFAMOUS First Light™":       { genre:"Action-Adventure",              publisher:"SIE",                 desc:"Standalone Fetch DLC." },
+  "inFAMOUS Second Son™":        { genre:"Action-Adventure",              publisher:"SIE",                 desc:"Superpowered open-world Seattle." },
+  "JUMP FORCE":                  { genre:"Fighting / Crossover",          publisher:"Bandai Namco",        desc:"Shonen Jump crossover fighting." },
+  "JUST SING™":                  { genre:"Music / Karaoke",               publisher:"Ravenscourt",         desc:"Karaoke party game." },
+  "Jetpack Joyride":             { genre:"Endless Runner",                publisher:"Halfbrick",           desc:"The classic jetpack endless runner." },
+  "JoJo's Bizarre Adventure: All-Star Battle R":{ genre:"Fighting",       publisher:"Bandai Namco",        desc:"JoJo fighting with a huge roster." },
+  "JoJo's Bizarre Adventure: Eyes of Heaven":{ genre:"Fighting",          publisher:"Bandai Namco",        desc:"2v2 JoJo fighting." },
+  "John Wick Hex":               { genre:"Strategy / Tactics",            publisher:"Good Shepherd",       desc:"Turn-based strategy with John Wick." },
+  "Journey":                     { genre:"Adventure / Artistic",          publisher:"SIE",                 desc:"A wordless multiplayer journey." },
+  "Journey To The Savage Planet":{ genre:"Action-Adventure / Co-op",      publisher:"505 Games",           desc:"Colorful co-op sci-fi exploration." },
+  "Judgment":                    { genre:"Action-Adventure",              publisher:"SEGA",                desc:"Yakuza spin-off detective story." },
+  "Jump King":                   { genre:"Platformer",                    publisher:"Nexile",              desc:"A rage-inducing vertical platformer." },
+  "Jurassic World Evolution":    { genre:"Management / Sim",              publisher:"Frontier",            desc:"Build and manage a dinosaur park." },
+  "Jurassic World Evolution 2":  { genre:"Management / Sim",              publisher:"Frontier",            desc:"The expanded dinosaur park sim." },
+  "Just Cause 3":                { genre:"Action-Adventure / Open-World", publisher:"Square Enix",         desc:"Explosive open-world chaos in Medici." },
+  "Just Cause 4":                { genre:"Action-Adventure / Open-World", publisher:"Square Enix",         desc:"Extreme weather open-world chaos." },
+  "Just Deal With It!":          { genre:"Party / Card Game",             publisher:"SIE",                 desc:"PlayLink card party game." },
+  "Just Die Already":            { genre:"Sandbox / Comedy",              publisher:"Curve Digital",       desc:"Old people causing chaos." },
+  "Just Shapes & Beats":         { genre:"Rhythm / Bullet Hell",          publisher:"Berzerk Studio",      desc:"A rhythm bullet-hell game." },
+  "KILLZONE™ SHADOW FALL":       { genre:"FPS",                           publisher:"SIE",                 desc:"PS4 launch FPS." },
+  "KINGDOM HEARTS 1.5 + 2.5":    { genre:"Action RPG",                    publisher:"Square Enix",         desc:"HD collection of KH 1.5 and 2.5." },
+  "KINGDOM HEARTS Ⅲ":            { genre:"Action RPG",                    publisher:"Square Enix",         desc:"The long-awaited KH3." },
+  "KINGDOM HEARTS Melody of Memory":{ genre:"Rhythm",                     publisher:"Square Enix",         desc:"Rhythm spin-off of Kingdom Hearts." },
+  "KNACK™":                      { genre:"Platformer / Action",           publisher:"SIE",                 desc:"PS4 launch platformer." },
+  "KNACK™ 2":                    { genre:"Platformer / Action",           publisher:"SIE",                 desc:"The improved sequel." },
+  "Keep Talking and Nobody Explodes":{ genre:"Puzzle / Party",            publisher:"Steel Crate",         desc:"Defuse bombs with a friend reading the manual." },
+  "Kena: Bridge of Spirits":     { genre:"Action-Adventure",              publisher:"Ember Lab",           desc:"A beautiful action-adventure about a spirit guide." },
+  "Kentucky Route Zero":         { genre:"Adventure / Narrative",         publisher:"Annapurna",           desc:"A magical realist adventure." },
+  "Kerbal Space Program":        { genre:"Simulation / Sandbox",          publisher:"Private Division",    desc:"Build and fly rockets." },
+  "KeyWe":                       { genre:"Puzzle / Co-op",                publisher:"Sold Out",            desc:"Kiwi birds running a post office." },
+  "Killing Floor 2":             { genre:"Co-op FPS / Zombie",            publisher:"Tripwire",            desc:"Co-op wave-based zombie shooting." },
+  "Kingdom Come: Deliverance":   { genre:"Action RPG / Open-World",       publisher:"Warhorse",            desc:"Realistic medieval RPG." },
+  "Kingdom Hearts 2.8":          { genre:"Action RPG",                    publisher:"Square Enix",         desc:"KH 2.8 collection." },
+  "Knowledge is Power™":         { genre:"Quiz / Party",                  publisher:"SIE",                 desc:"PlayLink quiz game." },
+  "Knowledge is Power™: Decades":{ genre:"Quiz / Party",                  publisher:"SIE",                 desc:"PlayLink quiz game with decades theme." },
+  "L.A. Noire":                  { genre:"Action-Adventure / Detective", publisher:"Rockstar",            desc:"1940s detective game remastered." },
+  "LEGO® Batman™ 3: Beyond Gotham":{ genre:"Action-Adventure / LEGO",     publisher:"WB Games",            desc:"LEGO Batman in space." },
+  "LEGO® CITY UNDERCOVER":       { genre:"Action-Adventure / LEGO",       publisher:"WB Games",            desc:"LEGO open-world cop adventure." },
+  "LEGO® DC Super-Villains":     { genre:"Action-Adventure / LEGO",       publisher:"WB Games",            desc:"Play as DC villains." },
+  "LEGO® Harry Potter™ Collection":{ genre:"Action-Adventure / LEGO",     publisher:"WB Games",            desc:"Both LEGO Harry Potter games." },
+  "LEGO® Jurassic World™":       { genre:"Action-Adventure / LEGO",       publisher:"WB Games",            desc:"LEGO dinosaur park adventure." },
+  "LEGO® MARVEL Super Heroes":   { genre:"Action-Adventure / LEGO",       publisher:"WB Games",            desc:"LEGO Marvel's first outing." },
+  "LEGO® MARVEL Super Heroes 2": { genre:"Action-Adventure / LEGO",       publisher:"WB Games",            desc:"Time-traveling LEGO Marvel sequel." },
+  "LEGO® MARVEL's Avengers":     { genre:"Action-Adventure / LEGO",       publisher:"WB Games",            desc:"LEGO Avengers movie adaptation." },
+  "LEGO® STAR WARS™: The Force Awakens":{ genre:"Action-Adventure / LEGO",publisher:"WB Games",            desc:"LEGO Star Wars Episode VII." },
+  "LEGO® Star Wars™: The Skywalker Saga":{ genre:"Action-Adventure / LEGO",publisher:"WB Games",           desc:"All nine Star Wars films in LEGO." },
+  "LEGO® The Hobbit™":           { genre:"Action-Adventure / LEGO",       publisher:"WB Games",            desc:"LEGO Hobbit adventure." },
+  "LEGO® The Incredibles":       { genre:"Action-Adventure / LEGO",       publisher:"WB Games",            desc:"LEGO Incredibles adventure." },
+  "LEGO® Worlds":                { genre:"Sandbox / LEGO",                publisher:"WB Games",            desc:"Open-world LEGO sandbox." },
+  "LIMBO":                       { genre:"Platformer / Puzzle",           publisher:"Playdead",            desc:"A dark monochrome puzzle platformer." },
+  "Lara Croft GO":               { genre:"Puzzle / Strategy",             publisher:"Square Enix",         desc:"Turn-based Tomb Raider puzzle." },
+  "Lara Croft and the Temple of Osiris":{ genre:"Action-Adventure / Co-op",publisher:"Square Enix",        desc:"Top-down co-op Tomb Raider." },
+  "Laser League":                { genre:"Sports / Arcade",               publisher:"505 Games",           desc:"Futuristic team sports game." },
+  "Layers of Fear":              { genre:"Horror",                        publisher:"Bloober Team",        desc:"A psychedelic horror game about a painter." },
+  "Layers of Fear 2":            { genre:"Horror",                        publisher:"Bloober Team",        desc:"An ocean-liner horror sequel." },
+  "LEGO Voyagers":               { genre:"Action-Adventure / LEGO",       publisher:"WB Games",            desc:"LEGO space adventure." },
+  "Let's Sing 10":               { genre:"Music / Karaoke",               publisher:"Ravenscourt",         desc:"Karaoke game." },
+  "Let's Sing 11":               { genre:"Music / Karaoke",               publisher:"Ravenscourt",         desc:"Karaoke game." },
+  "Let's Sing 12":               { genre:"Music / Karaoke",               publisher:"Ravenscourt",         desc:"Karaoke game." },
+  "Let's Sing 13":               { genre:"Music / Karaoke",               publisher:"Ravenscourt",         desc:"Karaoke game." },
+  "Let's Sing 2016":             { genre:"Music / Karaoke",               publisher:"Ravenscourt",         desc:"Karaoke game." },
+  "Let's Sing 2017":             { genre:"Music / Karaoke",               publisher:"Ravenscourt",         desc:"Karaoke game." },
+  "Let's Sing 2018 (Germany)":   { genre:"Music / Karaoke",               publisher:"Ravenscourt",         desc:"German karaoke game." },
+  "Let's Sing 2019":             { genre:"Music / Karaoke",               publisher:"Ravenscourt",         desc:"Karaoke game." },
+  "Let's Sing 2020 (France)":    { genre:"Music / Karaoke",               publisher:"Ravenscourt",         desc:"French karaoke game." },
+  "Let's Sing 2020 (Germany)":   { genre:"Music / Karaoke",               publisher:"Ravenscourt",         desc:"German karaoke game." },
+  "Let's Sing 2020":             { genre:"Music / Karaoke",               publisher:"Ravenscourt",         desc:"Karaoke game." },
+  "Let's Sing 2021":             { genre:"Music / Karaoke",               publisher:"Ravenscourt",         desc:"Karaoke game." },
+  "Let's Sing 2022":             { genre:"Music / Karaoke",               publisher:"Ravenscourt",         desc:"Karaoke game." },
+  "Let's Sing 8 (Spain)":        { genre:"Music / Karaoke",               publisher:"Ravenscourt",         desc:"Spanish karaoke game." },
+  "Let's Sing 9 (Spain)":        { genre:"Music / Karaoke",               publisher:"Ravenscourt",         desc:"Spanish karaoke game." },
+  "Let's Sing Abba":             { genre:"Music / Karaoke",               publisher:"Ravenscourt",         desc:"ABBA karaoke game." },
+  "Let's Sing Country":          { genre:"Music / Karaoke",               publisher:"Ravenscourt",         desc:"Country karaoke game." },
+  "Let's Sing Queen":            { genre:"Music / Karaoke",               publisher:"Ravenscourt",         desc:"Queen karaoke game." },
+  "Lies of P":                   { genre:"Action RPG / Souls-like",      publisher:"Neowiz",              desc:"Pinocchio-inspired souls-like." },
+  "Life Is Strange™":            { genre:"Adventure / Narrative",         publisher:"Square Enix",         desc:"Time-rewinding narrative adventure." },
+  "Life is Strange 2":           { genre:"Adventure / Narrative",         publisher:"Square Enix",         desc:"Brothers on the run narrative adventure." },
+  "Life is Strange: Before the Storm":{ genre:"Adventure / Narrative",    publisher:"Square Enix",         desc:"Prequel to Life is Strange." },
+  "Life is Strange: True Colors™":{ genre:"Adventure / Narrative",        publisher:"Square Enix",         desc:"Empathy-powered narrative adventure." },
+  "Like A Dragon":               { genre:"Action-Adventure / RPG",        publisher:"SEGA",                desc:"Yakuza: Like a Dragon's Western title." },
+  "Like a Dragon: Infinite Wealth":{ genre:"Action-Adventure / RPG",      publisher:"SEGA",                desc:"Ichiban and Kiryu team up in Hawaii." },
+  "Like a Dragon: Ishin!":       { genre:"Action-Adventure",              publisher:"SEGA",                desc:"Samurai-era Yakuza spin-off." },
+  "Like a Dragon: Pirates in Hawaii":{ genre:"Action-Adventure",          publisher:"SEGA",                desc:"Pirate-themed Yakuza spin-off." },
+  "Like a Dragon: The Man Who Erased His Name":{ genre:"Action-Adventure",publisher:"SEGA",                desc:"Kiryu's story between Yakuza 6 and 7." },
+  "Little Big Adventure - Twinsen's Quest":{ genre:"Action-Adventure",    publisher:"Microids",            desc:"Remake of the classic Twinsen adventure." },
+  "Little Nightmares":           { genre:"Horror / Puzzle",               publisher:"Bandai Namco",        desc:"A creepy puzzle-platformer." },
+  "Little Nightmares II":        { genre:"Horror / Puzzle",               publisher:"Bandai Namco",        desc:"The sequel with Mono and Six." },
+  "Little Nightmares III":       { genre:"Horror / Puzzle",               publisher:"Bandai Namco",        desc:"The third entry in the series." },
+  "LittleBigPlanet™3":           { genre:"Platformer / Creative",         publisher:"SIE",                 desc:"Create and play in the LBP universe." },
+  "LocoRoco™":                   { genre:"Platformer / Puzzle",           publisher:"SIE",                 desc:"Tilt-based rolling platformer." },
+  "LocoRoco™ 2":                 { genre:"Platformer / Puzzle",           publisher:"SIE",                 desc:"The sequel with more LocoRoco fun." },
+  "Lonely Mountains: Downhill":  { genre:"Sports / Racing",               publisher:"Thunderful",          desc:"Minimalist mountain biking." },
+  "Lost Judgment":               { genre:"Action-Adventure",              publisher:"SEGA",                desc:"Sequel to Judgment." },
+  "Lovers in a Dangerous Spacetime":{ genre:"Co-op / Action",             publisher:"Asteroid Base",       desc:"Co-op spaceship management." },
+  "MARVEL VS. CAPCOM: INFINITE": { genre:"Fighting / Crossover",          publisher:"Capcom",              desc:"Marvel vs Capcom crossover fighter." },
+  "MARVEL vs. CAPCOM Fighting Collection":{ genre:"Fighting / Compilation",publisher:"Capcom",             desc:"Classic Marvel vs Capcom games." },
+  "METAL GEAR SOLID":            { genre:"Stealth / Action",              publisher:"Konami",              desc:"MGS1 remastered." },
+  "METAL GEAR SOLID 2: Sons of Liberty":{ genre:"Stealth / Action",       publisher:"Konami",              desc:"MGS2 remastered." },
+  "METAL GEAR SOLID 3: Snake Eater":{ genre:"Stealth / Action",           publisher:"Konami",              desc:"MGS3 remastered." },
+  "METAL GEAR SOLID V":          { genre:"Stealth / Action",              publisher:"Konami",              desc:"MGSV: The Phantom Pain." },
+  "MLB® The Show™ 20":           { genre:"Sports / Baseball",             publisher:"SIE",                 desc:"Baseball simulation." },
+  "MX vs ATV Legends":           { genre:"Racing / Off-road",             publisher:"THQ Nordic",          desc:"Off-road racing." },
+  "Mad Max":                     { genre:"Action-Adventure / Open-World", publisher:"WB Games",            desc:"Open-world post-apocalyptic vehicular combat." },
+  "Madden NFL 24":               { genre:"Sports / Football",             publisher:"EA",                  desc:"American football simulation." },
+  "Mafia":                       { genre:"Action-Adventure",              publisher:"2K",                  desc:"Remake of the classic Mafia." },
+  "Mafia II":                    { genre:"Action-Adventure",              publisher:"2K",                  desc:"Remastered Mafia II." },
+  "Mafia III":                   { genre:"Action-Adventure / Open-World", publisher:"2K",                  desc:"Open-world 1968 mob story." },
+  "Maneater":                    { genre:"Action RPG",                    publisher:"Tripwire",            desc:"Play as a shark in an open-world RPG." },
+  "Mantis Burn Racing":          { genre:"Racing",                        publisher:"VooFoo",              desc:"Top-down arcade racing." },
+  "Marvel Ultimate Alliance":    { genre:"Action RPG",                    publisher:"Activision",          desc:"Marvel team-up action RPG." },
+  "Marvel Ultimate Alliance 2":  { genre:"Action RPG",                    publisher:"Activision",          desc:"Sequel with Civil War storyline." },
+  "Marvel's Avengers":           { genre:"Action-Adventure / Co-op",      publisher:"Square Enix",         desc:"Live-service Avengers game." },
+  "Marvel's Guardians of the Galaxy":{ genre:"Action-Adventure",          publisher:"Square Enix",         desc:"Single-player Guardians adventure." },
+  "Marvel’s Guardians of the Galaxy: The Telltale Series":{ genre:"Adventure / Narrative",publisher:"Telltale",desc:"Telltale's Guardians story." },
+  "Marvel's Midnight Suns":      { genre:"Tactical RPG",                  publisher:"2K",                  desc:"Card-based tactical Marvel RPG." },
+  "Marvel's Spider-Man":         { genre:"Action-Adventure / Open-World", publisher:"SIE",                 desc:"Insomniac's Spider-Man open-world." },
+  "Marvel's Spider-Man: Miles Morales":{ genre:"Action-Adventure / Open-World",publisher:"SIE",           desc:"Miles Morales' standalone story." },
+  "Mass Effect™: Andromeda":     { genre:"Action RPG / Open-World",       publisher:"EA",                  desc:"New galaxy Mass Effect." },
+  "Mass Effect™ Trilogy":        { genre:"Action RPG",                    publisher:"EA",                  desc:"Legendary Edition of the trilogy." },
+  "MediEvil":                    { genre:"Action-Adventure",              publisher:"SIE",                 desc:"Remake of the PS1 classic." },
+  "Mega Man 11":                 { genre:"Action / Platformer",           publisher:"Capcom",              desc:"Classic Mega Man action." },
+  "Melbits™ World":              { genre:"Puzzle / Platformer",           publisher:"Plug In Digital",     desc:"Cute puzzle-platformer." },
+  "Metal Slug Tactics":          { genre:"Tactical RPG / Roguelike",      publisher:"Dotemu",              desc:"Tactical spin-off of Metal Slug." },
+  "Metaphor: ReFantazio":        { genre:"JRPG",                          publisher:"Atlus",               desc:"Fantasy JRPG from the Persona team." },
+  "Metro Exodus":                { genre:"FPS / Survival",                publisher:"Deep Silver",         desc:"Open-world Metro sequel." },
+  "Metro Redux":                 { genre:"FPS / Survival",                publisher:"Deep Silver",         desc:"Remastered Metro 2033 and Last Light." },
+  "Micro Machines World Series": { genre:"Racing / Arcade",               publisher:"Codemasters",         desc:"Toy-car racing." },
+  "Middle-earth™: Shadow of Mordor™":{ genre:"Action-Adventure / Open-World",publisher:"WB Games",         desc:"Nemesis-system open-world Mordor." },
+  "Middle-earth™: Shadow of War™":{ genre:"Action-Adventure / Open-World",publisher:"WB Games",            desc:"Expanded Mordor sequel." },
+  "Minecraft":                   { genre:"Sandbox / Survival",            publisher:"Mojang",              desc:"The block-building phenomenon." },
+  "Minit":                       { genre:"Adventure / Puzzle",            publisher:"Devolver",            desc:"A 60-second-loop adventure." },
+  "Mirror's Edge™ Catalyst":     { genre:"Action-Adventure / Parkour",    publisher:"EA",                  desc:"Open-world Mirror's Edge." },
+  "Monopoly Madness":            { genre:"Party / Board Game",            publisher:"Ubisoft",             desc:"Chaotic Monopoly spin-off." },
+  "Monster Boy and the Cursed Kingdom":{ genre:"Metroidvania / Platformer",publisher:"FDG",                desc:"Colorful metroidvania." },
+  "Monster Energy Supercross 6": { genre:"Racing / Motocross",            publisher:"Milestone",           desc:"Supercross racing." },
+  "Monster Hunter Rise":         { genre:"Action RPG / Hunting",          publisher:"Capcom",              desc:"Portable-style Monster Hunter." },
+  "Monster Hunter World: Iceborne":{ genre:"Action RPG / Hunting",        publisher:"Capcom",              desc:"Iceborne expansion." },
+  "Monster Jam™ Showdown":       { genre:"Racing / Monster Truck",        publisher:"Milestone",           desc:"Monster truck racing." },
+  "Monster Jam Steel Titans 2":  { genre:"Racing / Monster Truck",        publisher:"THQ Nordic",          desc:"Monster truck sequel." },
+  "Mortal Kombat 11":            { genre:"Fighting",                      publisher:"WB Games",            desc:"MK11 with all DLC." },
+  "Mortal Kombat X":             { genre:"Fighting",                      publisher:"WB Games",            desc:"MKX with a guest-heavy roster." },
+  "Mortal Shell":                { genre:"Action RPG / Souls-like",      publisher:"Playstack",           desc:"A short, dense souls-like." },
+  "MotoGP™24":                   { genre:"Racing / Sim",                  publisher:"Milestone",           desc:"Official MotoGP racing." },
+  "Moving Out":                  { genre:"Party / Physics",               publisher:"Team17",              desc:"Co-op moving simulator." },
+  "Moving Out 2":                { genre:"Party / Physics",               publisher:"Team17",              desc:"Co-op moving sequel." },
+  "MudRunner":                   { genre:"Simulation / Off-road",         publisher:"Focus Home",          desc:"Off-road trucking in Siberia." },
+  "Mutant Year Zero: Road to Eden":{ genre:"Tactical RPG",                publisher:"Funcom",              desc:"Post-apocalyptic tactical RPG." },
+  "Mutazione":                   { genre:"Adventure / Narrative",         publisher:"Akupara",             desc:"A mutant soap opera." },
+  "My Friend Pedro - Blood Bullets Bananas":{ genre:"Action / Platformer",publisher:"Devolver",            desc:"A stylish shoot-'em-up." },
+  "My Name is Mayo":             { genre:"Clicker / Comedy",              publisher:"Green Lava",          desc:"A clicker game about a jar of mayo." },
+  "My Name is Mayo 2":           { genre:"Clicker / Comedy",              publisher:"Green Lava",          desc:"The sequel clicker." },
+  "NARUTO SHIPPUDEN™: Ultimate Ninja® STORM 4":{ genre:"Fighting / Arena",publisher:"Bandai Namco",       desc:"Naruto arena fighter." },
+  "NARUTO SHIPPUDEN: Ultimate Ninja STORM 4 ROAD TO BORUTO":{ genre:"Fighting / Arena",publisher:"Bandai Namco",desc:"Storm 4 with Boruto content." },
+  "NARUTO SHIPPUDEN™: Ultimate Ninja® STORM TRILOGY":{ genre:"Fighting / Arena",publisher:"Bandai Namco",desc:"First three Storm games." },
+  "NARUTO X BORUTO Ultimate Ninja STORM CONNECTIONS":{ genre:"Fighting / Arena",publisher:"Bandai Namco",desc:"Crossover Naruto fighter." },
+  "NBA 2K Playgrounds 2":        { genre:"Sports / Arcade Basketball",    publisher:"2K",                  desc:"Arcade 2v2 basketball." },
+  "NBA 2K14":                    { genre:"Sports / Basketball",           publisher:"2K",                  desc:"Classic NBA 2K." },
+  "NBA 2K24":                    { genre:"Sports / Basketball",           publisher:"2K",                  desc:"Latest NBA 2K sim." },
+  "NHL® 24":                     { genre:"Sports / Hockey",               publisher:"EA",                  desc:"Hockey simulation." },
+  "NINJA GAIDEN 3: Razor's Edge":{ genre:"Action / Character Action",     publisher:"Koei Tecmo",          desc:"Ninja Gaiden 3 remastered." },
+  "NINJA GAIDEN Σ":              { genre:"Action / Character Action",     publisher:"Koei Tecmo",          desc:"Ninja Gaiden Sigma remastered." },
+  "NINJA GAIDEN Σ2":             { genre:"Action / Character Action",     publisher:"Koei Tecmo",          desc:"Ninja Gaiden Sigma 2 remastered." },
+  "NOT A HERO":                  { genre:"Action / Shooter",              publisher:"Devolver",            desc:"A colorful, violent platformer." },
+  "NOW That's What I Call Sing": { genre:"Music / Karaoke",               publisher:"Ravenscourt",         desc:"Karaoke game." },
+  "Necromunda : Hired Gun":      { genre:"FPS / Action",                  publisher:"Focus Home",          desc:"Fast-paced FPS in the Warhammer 40k universe." },
+  "Necromunda: Underhive Wars":  { genre:"Tactical RPG",                  publisher:"Focus Home",          desc:"Turn-based Necromunda tactics." },
+  "Need for Speed™ Heat":        { genre:"Racing / Open-World",           publisher:"EA",                  desc:"Day/night open-world racing." },
+  "Need for Speed™ Payback":     { genre:"Racing / Open-World",           publisher:"EA",                  desc:"Action-driving open-world racer." },
+  "Need for Speed™ Rivals":      { genre:"Racing / Open-World",           publisher:"EA",                  desc:"Cops vs racers open-world." },
+  "Neon Drive":                  { genre:"Rhythm / Racing",               publisher:"Fraoula",             desc:"80s neon rhythm racing." },
+  "Neon White":                  { genre:"FPS / Platformer / Card Game",  publisher:"Annapurna",           desc:"Speedrunning FPS with cards." },
+  "Neva":                        { genre:"Platformer / Adventure",        publisher:"Devolver",            desc:"A beautiful platformer from the GRIS team." },
+  "New Tales from the Borderlands®":{ genre:"Adventure / Narrative",      publisher:"2K",                  desc:"Sequel to Tales from the Borderlands." },
+  "Nex Machina":                 { genre:"Twin-Stick Shooter",            publisher:"Housemarque",         desc:"Fast-paced twin-stick shooter." },
+  "Ni no Kuni™ II: Revenant Kingdom":{ genre:"JRPG",                      publisher:"Bandai Namco",        desc:"Ghibli-animated JRPG sequel." },
+  "Ni no Kuni: Wrath of the White Witch™":{ genre:"JRPG",                 publisher:"Bandai Namco",        desc:"Ghibli-animated JRPG remaster." },
+  "Nidhogg":                     { genre:"Fighting / Fencing",            publisher:"Messhof",             desc:"A minimalist fencing duel game." },
+  "Nidhogg 2":                   { genre:"Fighting / Fencing",            publisher:"Messhof",             desc:"The gorier sequel." },
+  "NieR:Automata":               { genre:"Action RPG",                    publisher:"Square Enix",         desc:"A philosophical action RPG masterpiece." },
+  "NieR Replicant ver.1.22474487139...":{ genre:"Action RPG",             publisher:"Square Enix",         desc:"Remaster of the original NieR." },
+  "Night Slashers":              { genre:"Beat 'em Up",                   publisher:"Data East",           desc:"Retro horror beat 'em up remake." },
+  "Night in the Woods":          { genre:"Adventure / Narrative",         publisher:"Infinite Fall",       desc:"A coming-of-age story with anthropomorphic animals." },
+  "Nine Sols":                   { genre:"Metroidvania / Action",         publisher:"Red Candle",          desc:"A hand-drawn Taoist metroidvania." },
+  "Nioh":                        { genre:"Action RPG / Souls-like",      publisher:"Koei Tecmo",          desc:"Samurai souls-like." },
+  "Nioh 2":                      { genre:"Action RPG / Souls-like",      publisher:"Koei Tecmo",          desc:"The improved samurai souls-like sequel." },
+  "No Man's Sky":                { genre:"Survival / Exploration",        publisher:"Hello Games",         desc:"Infinite procedural universe exploration." },
+  "No More Heroes 3":            { genre:"Action-Adventure",              publisher:"Grasshopper",         desc:"Suda51's latest Travis Touchdown adventure." },
+  "Nobody Saves the World":      { genre:"Action RPG / Roguelike",        publisher:"DrinkBox",            desc:"Shape-shifting action RPG." },
+  "Nour: Play With Your Food":   { genre:"Sandbox / Artistic",            publisher:"Panic",               desc:"A playful food art toy." },
+  "Nova-111":                    { genre:"Puzzle / Strategy",             publisher:"Curve Digital",       desc:"Turn-based sci-fi puzzle adventure." },
+  "Nuclear Throne":              { genre:"Roguelike / Twin-Stick",        publisher:"Vlambeer",            desc:"A fast-paced post-apocalyptic roguelike." },
+  "OMORI":                       { genre:"RPG / Horror",                  publisher:"OMOCAT",              desc:"A psychological horror RPG." },
+  "ONE PIECE ODYSSEY":           { genre:"JRPG",                          publisher:"Bandai Namco",        desc:"Turn-based One Piece RPG." },
+  "ONE PIECE: PIRATE WARRIORS 3":{ genre:"Action / Musou",                publisher:"Bandai Namco",        desc:"One Piece musou." },
+  "ONE PIECE: PIRATE WARRIORS 4":{ genre:"Action / Musou",                publisher:"Bandai Namco",        desc:"Expanded One Piece musou." },
+  "ONE PIECE WORLD SEEKER":      { genre:"Action-Adventure / Open-World", publisher:"Bandai Namco",        desc:"Open-world One Piece adventure." },
+  "ONRUSH™":                     { genre:"Racing / Arcade",               publisher:"Codemasters",         desc:"Vehicular combat racer." },
+  "OXENFREE II: Lost Signals":   { genre:"Adventure / Narrative",         publisher:"Night School",        desc:"Supernatural narrative sequel." },
+  "Observer: System Redux":      { genre:"Horror / Cyberpunk",            publisher:"Bloober Team",        desc:"Cyberpunk horror remaster." },
+  "Octodad: Dadliest Catch":     { genre:"Physics / Comedy",              publisher:"Young Horses",        desc:"A game about being an octopus pretending to be a dad." },
+  "Oddworld: New 'n' Tasty":     { genre:"Platformer / Puzzle",           publisher:"Oddworld Inhabitants",desc:"Remake of Abe's Oddysee." },
+  "Oddworld: Soulstorm":         { genre:"Platformer / Puzzle",           publisher:"Oddworld Inhabitants",desc:"Sequel to New 'n' Tasty." },
+  "Oddworld: Stranger's Wrath":  { genre:"Action-Adventure",              publisher:"Oddworld Inhabitants",desc:"Western action Oddworld." },
+  "Old Man's Journey":           { genre:"Adventure / Puzzle",            publisher:"Broken Rules",        desc:"A gentle puzzle adventure." },
+  "OlliOlli 1+2":                { genre:"Sports / Skateboarding",        publisher:"Roll7",               desc:"Both OlliOlli games." },
+  "OlliOlli World":              { genre:"Sports / Skateboarding",        publisher:"Private Division",    desc:"Colorful skateboarding platformer." },
+  "Orcs Must Die! 3":            { genre:"Tower Defense / Action",        publisher:"Robot Entertainment", desc:"Orc-slaying tower defense." },
+  "Outer Wilds":                 { genre:"Adventure / Exploration",       publisher:"Annapurna",           desc:"A time-loop space exploration mystery." },
+  "Outlast & Outlast Whistleblower":{ genre:"Horror / Survival",          publisher:"Red Barrels",         desc:"Both Outlast 1 and its DLC." },
+  "Outlast 2":                   { genre:"Horror / Survival",             publisher:"Red Barrels",         desc:"Cult horror sequel." },
+  "Overcooked! All You Can Eat": { genre:"Party / Cooking",               publisher:"Team17",              desc:"Both Overcooked games remastered." },
+  "Owlboy":                      { genre:"Platformer / Adventure",        publisher:"D-Pad Studio",        desc:"A charming pixel-art platformer." },
+  "Oxenfree":                    { genre:"Adventure / Narrative",         publisher:"Night School",        desc:"Supernatural teen narrative." },
+  "ŌKAMI":                       { genre:"Action-Adventure / Zelda-like", publisher:"Capcom",              desc:"The classic cel-shaded Zelda-like remastered." },
+  "P.T.":                        { genre:"Horror / Demo",                 publisher:"Kojima",              desc:"The legendary playable teaser." },
+  "PAC-MAN™ Championship Edition 2 + Arcade Game Series™":{ genre:"Arcade / Compilation",publisher:"Bandai Namco",desc:"PAC-MAN CE2 plus arcade classics." },
+  "PES 2025":                    { genre:"Sports / Football",             publisher:"Konami",              desc:"Season update for eFootball PES." },
+  "PGA TOUR® 2K23":              { genre:"Sports / Golf",                 publisher:"2K",                  desc:"Golf simulation." },
+  "PROTOTYPE® 1+2":              { genre:"Action-Adventure / Open-World", publisher:"Activision",          desc:"Both Prototype games." },
+  "PaRappa The Rapper™":         { genre:"Rhythm",                        publisher:"SIE",                 desc:"Classic rhythm game remastered." },
+  "Patapon™":                    { genre:"Rhythm / Strategy",             publisher:"SIE",                 desc:"Rhythm-based army command game." },
+  "Patapon™2":                   { genre:"Rhythm / Strategy",             publisher:"SIE",                 desc:"Patapon sequel." },
+  "Persona 3":                   { genre:"JRPG",                          publisher:"Atlus",               desc:"Persona 3 remastered." },
+  "Persona 3: Dancing in Moonlight":{ genre:"Rhythm",                     publisher:"Atlus",               desc:"Persona 3 rhythm spin-off." },
+  "Persona 4":                   { genre:"JRPG",                          publisher:"Atlus",               desc:"Persona 4 remastered." },
+  "Persona 4 Arena":             { genre:"Fighting",                      publisher:"Atlus",               desc:"Persona 4 fighting game." },
+  "Persona 4: Dancing All Night":{ genre:"Rhythm",                        publisher:"Atlus",               desc:"Persona 4 rhythm spin-off." },
+  "Persona 5":                   { genre:"JRPG",                          publisher:"Atlus",               desc:"Persona 5 remastered." },
+  "Persona 5: Dancing in Starlight":{ genre:"Rhythm",                     publisher:"Atlus",               desc:"Persona 5 rhythm spin-off." },
+  "Persona 5 Strikers":          { genre:"Action RPG / Musou",            publisher:"Atlus",               desc:"Persona 5 musou spin-off." },
+  "Persona 5 Tactica":           { genre:"Tactical RPG",                  publisher:"Atlus",               desc:"Persona 5 tactical spin-off." },
+  "Pinball Arcade":              { genre:"Pinball",                       publisher:"FarSight",            desc:"Real pinball tables simulated." },
+  "Pinball FX3":                 { genre:"Pinball",                       publisher:"Zen",                 desc:"Zen Studios' pinball platform." },
+  "Planet Coaster":              { genre:"Management / Sim",              publisher:"Frontier",            desc:"Theme park management sim." },
+  "Planet of Lana":              { genre:"Puzzle / Adventure",            publisher:"Thunderful",          desc:"A cinematic puzzle adventure." },
+  "Plants vs. Zombies":          { genre:"Tower Defense",                 publisher:"PopCap",              desc:"The classic lane defense game." },
+  "Ponpu":                       { genre:"Action / Arcade",               publisher:"Merge Games",         desc:"Bomberman-inspired action." },
+  "Potion Craft":                { genre:"Simulation / Crafting",         publisher:"tinyBuild",           desc:"Potion-brewing shop sim." },
+  "Prey":                        { genre:"Immersive Sim / FPS",           publisher:"Bethesda",            desc:"Space station immersive sim." },
+  "Prince Of Persia: The Lost Crown":{ genre:"Metroidvania / Action",     publisher:"Ubisoft",             desc:"Side-scrolling Prince of Persia metroidvania." },
+  "Prison Architect":            { genre:"Management / Sim",              publisher:"Paradox",             desc:"Prison management sim." },
+  "Prodeus":                     { genre:"FPS / Retro",                   publisher:"Bounding Box",        desc:"Retro-style FPS." },
+  "Psychonauts 2":               { genre:"Platformer / Action-Adventure", publisher:"Xbox Game Studios",   desc:"The long-awaited Psychonauts sequel." },
+  "Pummel Party":                { genre:"Party / Board Game",            publisher:"Rebuilt Games",       desc:"Mario Party-style chaos." },
+  "Pyre":                        { genre:"Action RPG / Sports",           publisher:"Supergiant",          desc:"Supergiant's party-based RPG." },
+  "Quake":                       { genre:"FPS",                           publisher:"Bethesda",            desc:"Quake remastered." },
+  "Quake II":                    { genre:"FPS",                           publisher:"Bethesda",            desc:"Quake II remastered." },
+  "RAD":                         { genre:"Action / Roguelike",            publisher:"Bandai Namco",        desc:"Double Fine's roguelike." },
+  "RAGE 2":                      { genre:"FPS / Open-World",              publisher:"Bethesda",            desc:"Open-world FPS with id Software shooting." },
+  "RESIDENT EVIL 2":             { genre:"Survival Horror",               publisher:"Capcom",              desc:"RE2 remake." },
+  "RESIDENT EVIL 3":             { genre:"Survival Horror",               publisher:"Capcom",              desc:"RE3 remake." },
+  "RESIDENT EVIL 5":             { genre:"Action / Survival Horror",      publisher:"Capcom",              desc:"Co-op Resident Evil." },
+  "RESIDENT EVIL 6":             { genre:"Action / Survival Horror",      publisher:"Capcom",              desc:"Action-heavy Resident Evil." },
+  "RESIDENT EVIL 7 biohazard":   { genre:"Survival Horror",               publisher:"Capcom",              desc:"First-person Resident Evil." },
+  "RESIDENT EVIL REVELATIONS":   { genre:"Action / Survival Horror",      publisher:"Capcom",              desc:"Portable-style RE." },
+  "RESIDENT EVIL REVELATIONS 2": { genre:"Action / Survival Horror",      publisher:"Capcom",              desc:"Episodic RE Revelations sequel." },
+  "RESOGUN™":                    { genre:"Twin-Stick Shooter",            publisher:"Housemarque",         desc:"Voxel-based twin-stick shooter." },
+  "ROLLERDROME":                 { genre:"Sports / Action",               publisher:"Spike Chunsoft",      desc:"Futuristic roller derby combat." },
+  "Rabbids Party of Legends":    { genre:"Party",                         publisher:"Ubisoft",             desc:"Rabbids party game." },
+  "Rain World":                  { genre:"Platformer / Survival",         publisher:"Adult Swim",          desc:"A brutal ecosystem survival game." },
+  "Ratchet & Clank™":            { genre:"Platformer / Action",           publisher:"SIE",                 desc:"Reimagining of the first R&C." },
+  "Ravenswatch":                 { genre:"Roguelike / Action",            publisher:"Nacon",               desc:"Co-op roguelike with fairy-tale characters." },
+  "Rayman® Legends":             { genre:"Platformer",                    publisher:"Ubisoft",             desc:"The acclaimed Rayman platformer." },
+  "Red Dead Redemption":         { genre:"Action-Adventure / Open-World", publisher:"Rockstar",            desc:"Remaster of the classic Western." },
+  "Red Dead Redemption 2":       { genre:"Action-Adventure / Open-World", publisher:"Rockstar",            desc:"The epic Western open-world." },
+  "Red Faction Guerrilla":       { genre:"Action-Adventure / Open-World", publisher:"THQ Nordic",          desc:"Mars destruction sandbox." },
+  "Redout 2":                    { genre:"Racing / Futuristic",           publisher:"Saber",               desc:"Anti-gravity racing." },
+  "Resident Evil 4":             { genre:"Survival Horror / Action",      publisher:"Capcom",              desc:"RE4 remake." },
+  "Resident Evil Origins Collection":{ genre:"Survival Horror",           publisher:"Capcom",              desc:"RE0 and RE1 remastered." },
+  "Resident Evil Village":       { genre:"Survival Horror",               publisher:"Capcom",              desc:"RE8, sequel to RE7." },
+  "Return of the Obra Dinn":     { genre:"Puzzle / Adventure",            publisher:"Lucas Pope",          desc:"An insurance investigation on a ghost ship." },
+  "Revenge of the Savage Planet":{ genre:"Action-Adventure / Co-op",      publisher:"505 Games",           desc:"Co-op sci-fi exploration sequel." },
+  "Rez Infinite":                { genre:"Rhythm / Shooter",              publisher:"Enhance",             desc:"Synesthetic rail shooter remaster." },
+  "RiME":                        { genre:"Adventure / Puzzle",            publisher:"Grey Box",            desc:"A beautiful Mediterranean puzzle adventure." },
+  "Ride 4":                      { genre:"Racing / Sim",                  publisher:"Milestone",           desc:"Motorcycle racing sim." },
+  "Rise of the Tomb Raider":     { genre:"Action-Adventure",              publisher:"Square Enix",         desc:"Lara's Siberian adventure." },
+  "Risk of Rain 2":              { genre:"Roguelike / Third-Person Shooter",publisher:"Gearbox",           desc:"3D roguelike shooter." },
+  "Rock Band 4":                 { genre:"Music / Rhythm",                publisher:"Harmonix",            desc:"The return of Rock Band." },
+  "Rocket League®":              { genre:"Sports / Vehicular",            publisher:"Psyonix",             desc:"Soccer with cars." },
+  "Rocksmith 2014":              { genre:"Music / Learning",              publisher:"Ubisoft",             desc:"Learn guitar with a real guitar." },
+  "Rogue Legacy":                { genre:"Roguelike / Platformer",        publisher:"Cellar Door",         desc:"A genealogical roguelike." },
+  "Rogue Legacy 2":              { genre:"Roguelike / Platformer",        publisher:"Cellar Door",         desc:"The improved sequel." },
+  "resident evil 4 (2005)":      { genre:"Survival Horror / Action",      publisher:"Capcom",              desc:"The original RE4 remastered." },
+  "SAMURAI WARRIORS 5":          { genre:"Action / Musou",                publisher:"Koei Tecmo",          desc:"Samurai Warriors reboot." },
+  "SHADOW OF THE COLOSSUS™":     { genre:"Action-Adventure",              publisher:"SIE",                 desc:"Remake of the classic colossus game." },
+  "SIFU":                        { genre:"Action / Beat 'em Up",          publisher:"Sloclap",             desc:"A kung-fu aging mechanic brawler." },
+  "SNK Collection":              { genre:"Fighting / Compilation",        publisher:"SNK",                 desc:"Classic SNK arcade games." },
+  "SOMA":                        { genre:"Horror / Sci-Fi",               publisher:"Frictional",          desc:"Underwater sci-fi horror." },
+  "SONIC X SHADOW GENERATIONS":  { genre:"Platformer / Action",           publisher:"SEGA",                desc:"Sonic and Shadow Generations remastered." },
+  "SPIDERHECK":                  { genre:"Action / Comedy",               publisher:"Cheat Code",          desc:"A weird spider-themed action game." },
+  "STAR WARS™ Battlefront™":     { genre:"FPS / Action",                  publisher:"EA",                  desc:"Star Wars multiplayer shooter." },
+  "STAR WARS™ Battlefront™ II":  { genre:"FPS / Action",                  publisher:"EA",                  desc:"Expanded Star Wars multiplayer." },
+  "STAR WARS Jedi: Fallen Order™":{ genre:"Action-Adventure / Souls-like",publisher:"EA",                  desc:"Single-player Star Wars Jedi adventure." },
+  "STAR WARS Jedi: Survivor™":   { genre:"Action-Adventure / Souls-like", publisher:"EA",                  desc:"Sequel to Fallen Order." },
+  "STAR WARS™: Squadrons":       { genre:"Space Combat / Sim",            publisher:"EA",                  desc:"Star Wars starfighter combat." },
+  "STARWHAL":                    { genre:"Party / Action",                publisher:"Breakfall",           desc:"Local multiplayer space whale combat." },
+  "STREET FIGHTER IV":           { genre:"Fighting",                      publisher:"Capcom",              desc:"SFIV remastered." },
+  "STREET FIGHTER V":            { genre:"Fighting",                      publisher:"Capcom",              desc:"SFV with all content." },
+  "SUPER BOMBERMAN R 2":         { genre:"Party / Action",                publisher:"Konami",              desc:"Bomberman sequel." },
+  "SUPERHOT":                    { genre:"FPS / Puzzle",                  publisher:"SUPERHOT Team",       desc:"Time moves only when you move." },
+  "SUPERHOT: MIND CONTROL DELETE":{ genre:"FPS / Roguelike",              publisher:"SUPERHOT Team",       desc:"Roguelike SUPERHOT." },
+  "Sackboy™: A Big Adventure":   { genre:"Platformer / Co-op",            publisher:"SIE",                 desc:"Sackboy's 3D platforming adventure." },
+  "Saints Row":                  { genre:"Action-Adventure / Open-World", publisher:"Deep Silver",         desc:"Reboot of the Saints Row series." },
+  "Saints Row: Gat out of Hell": { genre:"Action-Adventure / Open-World", publisher:"Deep Silver",         desc:"Standalone Saints Row expansion." },
+  "Saints Row IV: Re-Elected":   { genre:"Action-Adventure / Open-World", publisher:"Deep Silver",         desc:"Superpowered Saints Row remaster." },
+  "Saints Row®: The Third™":     { genre:"Action-Adventure / Open-World", publisher:"Deep Silver",         desc:"Remaster of Saints Row The Third." },
+  "Sayonara Wild Hearts":        { genre:"Rhythm / Action",               publisher:"Annapurna",           desc:"A pop album rhythm game." },
+  "Sea of Solitude":             { genre:"Adventure / Narrative",         publisher:"EA",                  desc:"A game about loneliness and mental health." },
+  "Sea of Stars":                { genre:"JRPG",                          publisher:"Sabotage",            desc:"A retro-inspired turn-based RPG." },
+  "Season":                      { genre:"Adventure / Narrative",         publisher:"Scavengers",          desc:"A bicycle road-trip narrative game." },
+  "Sekiro™: Shadows Die Twice":  { genre:"Action / Souls-like",           publisher:"FromSoftware",        desc:"FromSoftware's ninja action masterpiece." },
+  "Serial Cleaner":              { genre:"Stealth / Action",              publisher:"Curve Digital",       desc:"Clean up crime scenes." },
+  "Serial Cleaners":             { genre:"Stealth / Action",              publisher:"Draw Distance",       desc:"Four cleaners in 90s NYC." },
+  "Shadow Warrior":              { genre:"FPS / Action",                  publisher:"Devolver",            desc:"Reboot of the classic FPS." },
+  "Shadow Warrior 2":            { genre:"FPS / Action",                  publisher:"Devolver",            desc:"Loot-driven Shadow Warrior sequel." },
+  "Shadow Warrior 3":            { genre:"FPS / Action",                  publisher:"Devolver",            desc:"Fast-paced Shadow Warrior threequel." },
+  "Shadow of the Tomb Raider":   { genre:"Action-Adventure",              publisher:"Square Enix",         desc:"Final entry in the reboot trilogy." },
+  "Shovel Knight: Treasure Trove":{ genre:"Platformer / Action",          publisher:"Yacht Club",          desc:"The complete Shovel Knight package." },
+  "Sid Meier's Civilization VI": { genre:"Strategy / 4X",                 publisher:"2K",                  desc:"The acclaimed Civ VI." },
+  "Sid Meier's Civilization® VII":{ genre:"Strategy / 4X",                publisher:"2K",                  desc:"The latest Civilization." },
+  "Skabma - Snowfall":           { genre:"Adventure / Puzzle",            publisher:"PID Games",           desc:"Sami folklore adventure." },
+  "Skater XL":                   { genre:"Sports / Skateboarding",        publisher:"Easy Day",            desc:"Skateboarding sim." },
+  "Skyrim":                      { genre:"Action RPG / Open-World",       publisher:"Bethesda",            desc:"The legendary open-world RPG." },
+  "Slay the Spire":              { genre:"Roguelike / Deckbuilder",       publisher:"Humble",              desc:"The roguelike deckbuilder that started it all." },
+  "Sleeping Dogs":               { genre:"Action-Adventure / Open-World", publisher:"Square Enix",         desc:"Hong Kong open-world crime game." },
+  "Slime 3K: Rise Against Despot":{ genre:"Roguelike / Auto-battler",     publisher:"Konfa",               desc:"Slime roguelike spin-off." },
+  "Slime Rancher":               { genre:"Simulation / Adventure",        publisher:"Monomi Park",         desc:"Adorable slime ranching." },
+  "Snake Pass":                  { genre:"Platformer / Puzzle",           publisher:"Sumo Digital",        desc:"Physics-based snake platformer." },
+  "Sniper Elite 3":              { genre:"Stealth / Shooter",             publisher:"Rebellion",           desc:"WWII sniper game." },
+  "Sniper Elite 4":              { genre:"Stealth / Shooter",             publisher:"Rebellion",           desc:"Italian WWII sniper game." },
+  "Sniper Elite 5":              { genre:"Stealth / Shooter",             publisher:"Rebellion",           desc:"French WWII sniper game." },
+  "Sniper Elite: Resistance":    { genre:"Stealth / Shooter",             publisher:"Rebellion",           desc:"New Sniper Elite spin-off." },
+  "Sniper Elite V2":             { genre:"Stealth / Shooter",             publisher:"Rebellion",           desc:"Sniper Elite V2 remastered." },
+  "Sniper Ghost Warrior Contracts":{ genre:"Stealth / Shooter",           publisher:"CI Games",            desc:"Contract-based sniper game." },
+  "Sniper Ghost Warrior Contracts 2":{ genre:"Stealth / Shooter",         publisher:"CI Games",            desc:"Sequel with 1500m+ shots." },
+  "SnowRunner":                  { genre:"Simulation / Off-road",         publisher:"Focus Home",          desc:"Off-road trucking with snow." },
+  "Solar Ash":                   { genre:"Action / Platformer",           publisher:"Annapurna",           desc:"Hyper Light Drifter team's 3D platformer." },
+  "Somerville":                  { genre:"Adventure / Puzzle",            publisher:"Jumpship",            desc:"Alien invasion adventure from a Playdead co-founder." },
+  "Sonic Mania":                 { genre:"Platformer",                    publisher:"SEGA",                desc:"Classic-style Sonic." },
+  "Sonic Origins":               { genre:"Platformer / Compilation",      publisher:"SEGA",                desc:"Classic Sonic games remastered." },
+  "Sound Shapes":                { genre:"Music / Platformer",            publisher:"SIE",                 desc:"Music-based platformer." },
+  "South Park™: The Fractured But Whole™":{ genre:"RPG / Comedy",         publisher:"Ubisoft",             desc:"South Park superhero RPG." },
+  "South Park™: The Stick of Truth™":{ genre:"RPG / Comedy",              publisher:"Ubisoft",             desc:"South Park fantasy RPG." },
+  "SpeedRunners":                { genre:"Party / Racing",                publisher:"tinyBuild",           desc:"Competitive 2D racing." },
+  "Spelunky":                    { genre:"Roguelike / Platformer",        publisher:"Mossmouth",           desc:"The classic roguelike platformer." },
+  "Spelunky 2":                  { genre:"Roguelike / Platformer",        publisher:"Mossmouth",           desc:"The expanded sequel." },
+  "Spiritfarer":                 { genre:"Management / Adventure",        publisher:"Thunder Lotus",       desc:"A cozy game about death and ferrying souls." },
+  "SpongeBob SquarePants: Battle For Bikini Bottom":{ genre:"Platformer", publisher:"THQ Nordic",          desc:"Remake of the classic SpongeBob platformer." },
+  "SpongeBob SquarePants: The Cosmic Shake":{ genre:"Platformer",         publisher:"THQ Nordic",          desc:"New SpongeBob platformer." },
+  "SpongeBob SquarePants™: The Patrick Star Game":{ genre:"Platformer",   publisher:"Outright Games",      desc:"Patrick Star spin-off game." },
+  "Spyro Reignited Trilogy":     { genre:"Platformer",                    publisher:"Activision",          desc:"Remakes of the first three Spyro games." },
+  "Stalker: Call of Prypiat":    { genre:"FPS / Survival Horror",         publisher:"GSC",                 desc:"Stalker: Call of Pripyat remastered." },
+  "Stalker: Clear Sky":          { genre:"FPS / Survival Horror",         publisher:"GSC",                 desc:"Stalker: Clear Sky remastered." },
+  "Stalker: Shadow of Chornobyl":{ genre:"FPS / Survival Horror",         publisher:"GSC",                 desc:"The original Stalker remastered." },
+  "Stardew Valley":              { genre:"Simulation / Farming RPG",      publisher:"ConcernedApe",        desc:"The beloved farming RPG." },
+  "Stellaris":                   { genre:"Strategy / 4X",                 publisher:"Paradox",             desc:"Space grand strategy." },
+  "Stick Fight: The Game":       { genre:"Party / Fighting",              publisher:"Landfall",            desc:"Physics-based stick figure fighting." },
+  "Stories Untold":              { genre:"Adventure / Horror",            publisher:"No Code",             desc:"An anthology of 80s-style horror adventures." },
+  "Stray":                       { genre:"Adventure / Puzzle",            publisher:"Annapurna",           desc:"Play as a cat in a cyberpunk city." },
+  "Street Fighter 6":            { genre:"Fighting",                      publisher:"Capcom",              desc:"The latest Street Fighter." },
+  "Street Fighter™ Collection":  { genre:"Fighting / Compilation",        publisher:"Capcom",              desc:"12 classic Street Fighter games." },
+  "Streets of Rage 4":           { genre:"Beat 'em Up",                   publisher:"Dotemu",              desc:"The acclaimed Streets of Rage revival." },
+  "Subnautica":                  { genre:"Survival / Underwater",         publisher:"Unknown Worlds",      desc:"Underwater survival exploration." },
+  "Subnautica Below Zero":       { genre:"Survival / Underwater",         publisher:"Unknown Worlds",      desc:"Arctic Subnautica sequel." },
+  "Super Crazy Rhythm Castle":   { genre:"Rhythm / Party",                publisher:"Konami",              desc:"Co-op rhythm adventure." },
+  "Super Meat Boy!":             { genre:"Platformer",                    publisher:"Team Meat",           desc:"The brutally hard platformer." },
+  "Super Monkey Ball: Banana Blitz":{ genre:"Party / Platformer",         publisher:"SEGA",                desc:"Monkey Ball Wii remaster." },
+  "Super Monkey Ball Banana Mania":{ genre:"Party / Platformer",          publisher:"SEGA",                desc:"Remake of Super Monkey Ball 1 & 2." },
+  "Superliminal":                { genre:"Puzzle",                        publisher:"Pillow Castle",       desc:"Perspective-based puzzle game." },
+  "Surgeon Simulator":           { genre:"Simulation / Comedy",           publisher:"Bossa",               desc:"Awkward surgery sim." },
+  "System Shock":                { genre:"Immersive Sim / FPS",           publisher:"Nightdive",           desc:"Remake of the classic System Shock." },
+  "TEKKEN™7":                    { genre:"Fighting",                      publisher:"Bandai Namco",        desc:"Tekken 7 with all content." },
+  "THE QUIET MAN":               { genre:"Action / Narrative",            publisher:"Square Enix",         desc:"A live-action-meets-game action story." },
+  "Tacoma":                      { genre:"Adventure / Narrative",         publisher:"Fullbright",          desc:"Space station narrative exploration." },
+  "Taiko No Tatsujin – Drum Session":{ genre:"Rhythm",                    publisher:"Bandai Namco",        desc:"Taiko drum rhythm game." },
+  "Tales from the Borderlands":  { genre:"Adventure / Narrative",         publisher:"Telltale",            desc:"Telltale's Borderlands story." },
+  "Tearaway™ Unfolded":          { genre:"Platformer / Adventure",        publisher:"SIE",                 desc:"Papercraft platformer." },
+  "Teenage Mutant Ninja Turtles: Shredder's Revenge":{ genre:"Beat 'em Up",publisher:"Dotemu",             desc:"Retro TMNT beat 'em up." },
+  "Telling Lies":                { genre:"Adventure / FMV",               publisher:"Annapurna",           desc:"FMV investigative thriller." },
+  "Terraria":                    { genre:"Sandbox / Survival",            publisher:"Re-Logic",            desc:"2D sandbox adventure." },
+  "Tetris® Effect: Connected":   { genre:"Puzzle / Rhythm",               publisher:"Enhance",             desc:"Synesthetic Tetris." },
+  "The Amazing Spider-Man 2™":   { genre:"Action-Adventure / Open-World", publisher:"Activision",          desc:"Open-world Spider-Man tie-in." },
+  "The Artful Escape":           { genre:"Adventure / Music",             publisher:"Annapurna",           desc:"A rock-opera adventure." },
+  "The Awesome Adventures of Captain Spirit":{ genre:"Adventure / Narrative",publisher:"Square Enix",      desc:"Free prequel to Life is Strange 2." },
+  "The Binding of Isaac":        { genre:"Roguelike",                     publisher:"Nicalis",             desc:"The classic roguelike." },
+  "The Bug Butcher":             { genre:"Action / Arcade",               publisher:"Ayyo Games",          desc:"Arcade bug-squashing shooter." },
+  "The Callisto Protocol™":      { genre:"Survival Horror",               publisher:"Krafton",             desc:"Dead Space spiritual successor." },
+  "The Crew 2":                  { genre:"Racing / Open-World",           publisher:"Ubisoft",             desc:"Multi-vehicle open-world racer." },
+  "The Cub":                     { genre:"Platformer / Adventure",        publisher:"Demagog Studio",      desc:"Post-apocalyptic platformer." },
+  "The Dark Pictures Anthology: House Of Ashes":{ genre:"Horror / Interactive Drama",publisher:"Bandai Namco",desc:"Iraq-set horror anthology." },
+  "The Dark Pictures Anthology: Little Hope":{ genre:"Horror / Interactive Drama",publisher:"Bandai Namco",desc:"Witch-trial horror anthology." },
+  "The Dark Pictures Anthology: Man of Medan":{ genre:"Horror / Interactive Drama",publisher:"Bandai Namco",desc:"Ghost ship horror anthology." },
+  "The Dark Pictures Anthology: The Devil in Me":{ genre:"Horror / Interactive Drama",publisher:"Bandai Namco",desc:"Serial killer horror anthology." },
+  "The Deadly Tower of Monsters":{ genre:"Action-Adventure",              publisher:"ACE Team",            desc:"B-movie sci-fi action." },
+  "The Eternal Castle":          { genre:"Platformer / Adventure",        publisher:"Leonard Menchiari",   desc:"A retro-styled cinematic platformer." },
+  "The Evil Within":             { genre:"Survival Horror",               publisher:"Bethesda",            desc:"Shinji Mikami's survival horror." },
+  "The Evil Within® 2":          { genre:"Survival Horror",               publisher:"Bethesda",            desc:"The improved sequel." },
+  "The Expanse: A Telltale Series":{ genre:"Adventure / Narrative",       publisher:"Telltale",            desc:"Telltale's Expanse story." },
+  "The Falconeer":               { genre:"Flight Combat",                 publisher:"Wired Productions",   desc:"Airborne combat on a giant bird." },
+  "The Forest":                  { genre:"Survival / Horror",             publisher:"Endnight",            desc:"Cannibal island survival." },
+  "The Forgotten City":          { genre:"Adventure / Mystery",           publisher:"Modern Storyteller",  desc:"Time-loop mystery in ancient Rome." },
+  "The Gardens Between":         { genre:"Puzzle / Adventure",            publisher:"The Voxel Agents",    desc:"Time-manipulation puzzle game." },
+  "The Knight Witch":            { genre:"Metroidvania / Shoot 'em Up",   publisher:"Team17",              desc:"Hand-drawn metroidvania shooter." },
+  "The Last Campfire":           { genre:"Puzzle / Adventure",            publisher:"Hello Games",         desc:"A charming puzzle adventure." },
+  "The Last Guardian™":          { genre:"Action-Adventure / Puzzle",     publisher:"SIE",                 desc:"Fumito Ueda's long-awaited adventure." },
+  "The Last of Us™":             { genre:"Action-Adventure / Survival",   publisher:"SIE",                 desc:"The remastered classic." },
+  "The Last of Us Part II™":     { genre:"Action-Adventure / Survival",   publisher:"SIE",                 desc:"The divisive but acclaimed sequel." },
+  "The Long Dark":               { genre:"Survival",                      publisher:"Hinterland",          desc:"Hardcore survival in the Canadian wilderness." },
+  "The Lord of the Rings: Gollum™":{ genre:"Action-Adventure / Stealth",  publisher:"Nacon",               desc:"Play as Gollum." },
+  "The Messenger":               { genre:"Platformer / Metroidvania",     publisher:"Devolver",            desc:"A retro platformer with a twist." },
+  "The Metronomicon: Slay the Dance Floor":{ genre:"Rhythm / RPG",        publisher:"Akupara",             desc:"Rhythm-based RPG." },
+  "The Mooseman":                { genre:"Adventure / Puzzle",            publisher:"Morteshka",           desc:"Chuvash folklore adventure." },
+  "The Occupation":              { genre:"Adventure / Immersive Sim",     publisher:"White Paper",         desc:"Investigative immersive sim." },
+  "The Order: 1886":             { genre:"Action-Adventure",              publisher:"SIE",                 desc:"Cinematic Victorian action." },
+  "The Outer Worlds":            { genre:"Action RPG / Open-World",       publisher:"Private Division",    desc:"Obsidian's space RPG." },
+  "The Pathless":                { genre:"Action-Adventure",              publisher:"Annapurna",           desc:"Archery-based open-world adventure." },
+  "The Pedestrian":              { genre:"Puzzle / Platformer",           publisher:"Skookum Arts",        desc:"Sign-based puzzle platformer." },
+  "The Quarry":                  { genre:"Horror / Interactive Drama",    publisher:"2K",                  desc:"Supermassive's summer camp horror." },
+  "The Sexy Brutale":            { genre:"Adventure / Puzzle",            publisher:"Tequila Works",       desc:"Time-loop murder mystery." },
+  "The Sims™ 4":                 { genre:"Simulation / Life",             publisher:"EA",                  desc:"The life simulation phenomenon." },
+  "The Sinking City":            { genre:"Adventure / Horror",            publisher:"Frogwares",           desc:"Lovecraftian detective game." },
+  "The Stanley Parable":         { genre:"Adventure / Comedy",            publisher:"Crows Crows Crows",   desc:"The meta narrative comedy." },
+  "The Surge":                   { genre:"Action RPG / Souls-like",      publisher:"Focus Home",          desc:"Sci-fi souls-like." },
+  "The Surge 2":                 { genre:"Action RPG / Souls-like",      publisher:"Focus Home",          desc:"The improved sequel." },
+  "The Talos Principle":         { genre:"Puzzle",                        publisher:"Devolver",            desc:"Philosophical puzzle game." },
+  "The Touryst":                 { genre:"Adventure / Puzzle",            publisher:"Shin'en",             desc:"Voxel vacation adventure." },
+  "The Unfinished Swan":         { genre:"Adventure / Puzzle",            publisher:"SIE",                 desc:"Paint-splashing adventure." },
+  "The Vanishing of Ethan Carter":{ genre:"Adventure / Horror",           publisher:"The Astronauts",      desc:"Investigation in a beautiful world." },
+  "The Walking Dead: The Telltale Series":{ genre:"Adventure / Narrative",publisher:"Telltale",            desc:"The complete Walking Dead Telltale saga." },
+  "The Wild at Heart":           { genre:"Adventure / Puzzle",            publisher:"Humble",              desc:"A beautiful creature-collecting adventure." },
+  "The Witcher 3: Wild Hunt":    { genre:"Action RPG / Open-World",       publisher:"CD Projekt",          desc:"The legendary open-world RPG." },
+  "The Witness":                 { genre:"Puzzle",                        publisher:"Thekla",              desc:"A beautiful island puzzle game." },
+  "The Wolf Among Us":           { genre:"Adventure / Narrative",         publisher:"Telltale",            desc:"Fables-based Telltale story." },
+  "Thief":                       { genre:"Stealth / Immersive Sim",       publisher:"Square Enix",         desc:"Thief reboot." },
+  "Thimbleweed Park":            { genre:"Adventure / Point-and-Click",   publisher:"Terrible Toybox",     desc:"Retro point-and-click mystery." },
+  "This Is the Police":          { genre:"Strategy / Adventure",          publisher:"THQ Nordic",          desc:"Police management narrative." },
+  "This Is the Police 2":        { genre:"Strategy / Adventure",          publisher:"THQ Nordic",          desc:"The expanded sequel." },
+  "This War of Mine":            { genre:"Survival / Strategy",           publisher:"11 bit studios",      desc:"Civilian survival in war." },
+  "Thomas Was Alone":            { genre:"Platformer / Puzzle",           publisher:"Mike Bithell",        desc:"A minimalist platformer about friendship." },
+  "Thronebreaker: The Witcher Tales":{ genre:"Card Game / RPG",           publisher:"CD Projekt",          desc:"Single-player Gwent RPG." },
+  "Thumper":                     { genre:"Rhythm / Horror",               publisher:"Drool",               desc:"Rhythm violence." },
+  "Time on Frog Island":         { genre:"Adventure / Puzzle",            publisher:"Merge Games",         desc:"Cozy island adventure." },
+  "Tiny Tina's Wonderlands":     { genre:"FPS / Looter-Shooter",          publisher:"2K",                  desc:"Fantasy Borderlands spin-off." },
+  "Titanfall™ 2":                { genre:"FPS",                           publisher:"EA",                  desc:"The acclaimed Titanfall sequel." },
+  "Tom Clancy's Ghost Recon® Wildlands":{ genre:"FPS / Open-World",       publisher:"Ubisoft",             desc:"Open-world co-op shooter." },
+  "Tomb Raider":                 { genre:"Action-Adventure",              publisher:"Square Enix",         desc:"Lara's origin story." },
+  "Tomb Raider I-III":           { genre:"Action-Adventure / Compilation",publisher:"Aspyr",               desc:"The first three Tomb Raider games remastered." },
+  "Tomb Raider IV-VI":           { genre:"Action-Adventure / Compilation",publisher:"Aspyr",               desc:"The later classic Tomb Raider games remastered." },
+  "Tony Hawk's™ Pro Skater™ 1+2":{ genre:"Sports / Skateboarding",        publisher:"Activision",          desc:"Remakes of the first two THPS." },
+  "Tony Hawk's™ Pro Skater™ 3+4":{ genre:"Sports / Skateboarding",        publisher:"Activision",          desc:"Remakes of THPS 3 and 4." },
+  "Tools Up!":                   { genre:"Party / Co-op",                 publisher:"All in! Games",       desc:"Co-op renovation game." },
+  "Tooth and Tail":              { genre:"Strategy / RTS",                publisher:"Pocketwatch",         desc:"Arcade real-time strategy." },
+  "TopSpin 2K25":                { genre:"Sports / Tennis",               publisher:"2K",                  desc:"Tennis simulation." },
+  "TowerFall Ascension":         { genre:"Party / Action",                publisher:"Matt Makes Games",    desc:"Archery-based local multiplayer." },
+  "Trackmania Turbo":            { genre:"Racing / Arcade",               publisher:"Ubisoft",             desc:"Arcade time-trial racing." },
+  "Train Sim World 4":           { genre:"Simulation / Train",            publisher:"Dovetail",            desc:"Train simulation." },
+  "Train Valley 2":              { genre:"Puzzle / Management",           publisher:"Flazm",               desc:"Train puzzle management." },
+  "Transference":                { genre:"Horror / Puzzle",               publisher:"Ubisoft",             desc:"Elijah Wood's psychological thriller." },
+  "Transistor":                  { genre:"Action RPG",                    publisher:"Supergiant",          desc:"Supergiant's sci-fi action RPG." },
+  "Trash Sailors":               { genre:"Party / Co-op",                 publisher:"tinyBuild",           desc:"Co-op rafting adventure." },
+  "Travis Strikes Again: No More Heroes":{ genre:"Action-Adventure",      publisher:"Grasshopper",         desc:"No More Heroes spin-off." },
+  "Treadnauts":                  { genre:"Party / Action",                publisher:"Topstitch",           desc:"Tank-based party game." },
+  "Trek to Yomi":                { genre:"Action / Adventure",            publisher:"Devolver",            desc:"Samurai cinematic action." },
+  "Trials Fusion™":              { genre:"Racing / Physics",              publisher:"Ubisoft",             desc:"Motorcycle physics platforming." },
+  "Trials Rising™":              { genre:"Racing / Physics",              publisher:"Ubisoft",             desc:"The expanded Trials sequel." },
+  "Tricky Towers":               { genre:"Party / Puzzle",                publisher:"WeirdBeard",          desc:"Physics-based block stacking." },
+  "Trine":                       { genre:"Platformer / Puzzle",           publisher:"Frozenbyte",          desc:"The classic co-op platformer." },
+  "Trine 2":                     { genre:"Platformer / Puzzle",           publisher:"Frozenbyte",          desc:"The expanded Trine sequel." },
+  "Trine 3: The Artifacts of Power":{ genre:"Platformer / Puzzle",        publisher:"Frozenbyte",          desc:"Trine's move to 3D." },
+  "Trine 4: The Nightmare Prince":{ genre:"Platformer / Puzzle",          publisher:"Modus",               desc:"A return to 2.5D for Trine." },
+  "Trine 5: A Clockwork Conspiracy":{ genre:"Platformer / Puzzle",        publisher:"THQ Nordic",          desc:"The fifth Trine adventure." },
+  "Tropico 5":                   { genre:"Strategy / Management",         publisher:"Kalypso",             desc:"Dictator management sim." },
+  "Tropico 6":                   { genre:"Strategy / Management",         publisher:"Kalypso",             desc:"The expanded Tropico sequel." },
+  "Trover Saves the Universe":   { genre:"Action-Adventure / Comedy",     publisher:"Squanch Games",       desc:"Justin Roiland's VR-compatible adventure." },
+  "Tunic":                       { genre:"Action-Adventure / Zelda-like", publisher:"Finji",               desc:"An isometric Zelda-like with a mysterious manual." },
+  "Turnip Boy Commits Tax Evasion":{ genre:"Action-Adventure / Comedy",   publisher:"Graffiti",            desc:"A funny Zelda-like." },
+  "Twelve Minutes":              { genre:"Adventure / Narrative",         publisher:"Annapurna",           desc:"Time-loop apartment thriller." },
+  "Two Point Campus":            { genre:"Management / Sim",              publisher:"SEGA",                desc:"University management sim." },
+  "Two Point Hospital":          { genre:"Management / Sim",              publisher:"SEGA",                desc:"Hospital management sim." },
+  "Ultimate Chicken Horse":      { genre:"Party / Platformer",            publisher:"Clever Endeavour",    desc:"Build-the-level party platformer." },
+  "Uncanny Valley":              { genre:"Horror / Adventure",            publisher:"Cowardly Creations",  desc:"Pixel-art horror adventure." },
+  "Uncharted 4: A Thief’s End™": { genre:"Action-Adventure",              publisher:"SIE",                 desc:"Nathan Drake's final adventure." },
+  "Uncharted™: The Lost Legacy": { genre:"Action-Adventure",              publisher:"SIE",                 desc:"Chloe and Nadine's standalone story." },
+  "Uncharted: The Nathan Drake Collection™":{ genre:"Action-Adventure",   publisher:"SIE",                 desc:"The first three Uncharted games remastered." },
+  "Undertale":                   { genre:"RPG",                           publisher:"tobyfox",             desc:"The beloved indie RPG." },
+  "Unrailed!":                   { genre:"Party / Co-op",                 publisher:"Daedalic",            desc:"Co-op train-building chaos." },
+  "Unravel":                     { genre:"Platformer / Puzzle",           publisher:"EA",                  desc:"Yarn-based platformer." },
+  "Unravel TWO":                 { genre:"Platformer / Puzzle",           publisher:"EA",                  desc:"Co-op yarn platformer." },
+  "Unspottable":                 { genre:"Party / Stealth",               publisher:"GrosChevaux",         desc:"Local multiplayer hide-and-seek." },
+  "Until Dawn™":                 { genre:"Horror / Interactive Drama",    publisher:"SIE",                 desc:"Supermassive's teen slasher." },
+  "Untitled Goose Game":         { genre:"Puzzle / Comedy",               publisher:"Panic",               desc:"Be a horrible goose." },
+  "Valiant Hearts: Coming Home": { genre:"Adventure / Puzzle",            publisher:"Ubisoft",             desc:"WWI narrative sequel." },
+  "Valiant Hearts: The Great War":{ genre:"Adventure / Puzzle",           publisher:"Ubisoft",             desc:"WWI narrative adventure." },
+  "Vampyr":                      { genre:"Action RPG",                    publisher:"Focus Home",          desc:"Vampire doctor in 1918 London." },
+  "Vanquish":                    { genre:"Action / Third-Person Shooter", publisher:"SEGA",                desc:"Platinum's fast-paced shooter." },
+  "Viewfinder":                  { genre:"Puzzle / Adventure",            publisher:"Thunderful",          desc:"Reality-bending photo puzzle." },
+  "Visage":                      { genre:"Horror",                        publisher:"SadSquare",           desc:"Slow-burn psychological horror." },
+  "WATCH_DOGS™":                 { genre:"Action-Adventure / Open-World", publisher:"Ubisoft",             desc:"Hacking open-world Chicago." },
+  "WATCH_DOGS® 2":               { genre:"Action-Adventure / Open-World", publisher:"Ubisoft",             desc:"Hacking open-world San Francisco." },
+  "WHAT THE GOLF?":              { genre:"Sports / Comedy",               publisher:"Triband",             desc:"Absurdist golf game." },
+  "WIPEOUT™ OMEGA COLLECTION":   { genre:"Racing / Futuristic",           publisher:"SIE",                 desc:"Anti-gravity racing remastered." },
+  "WWE 2K Battlegrounds":        { genre:"Sports / Arcade Wrestling",     publisher:"2K",                  desc:"Arcade WWE." },
+  "WWE 2K24":                    { genre:"Sports / Wrestling",            publisher:"2K",                  desc:"Wrestling simulation." },
+  "Watch Dogs®: Legion":         { genre:"Action-Adventure / Open-World", publisher:"Ubisoft",             desc:"Hack anyone in London." },
+  "We Happy Few":                { genre:"Action-Adventure / Survival",   publisher:"Compulsion",          desc:"Dystopian 1960s survival." },
+  "Webbed":                      { genre:"Platformer / Physics",          publisher:"Sbug Games",          desc:"Play as a spider." },
+  "Weird West":                  { genre:"Action RPG / Immersive Sim",   publisher:"Devolver",            desc:"Supernatural Wild West RPG." },
+  "What Remains of Edith Finch": { genre:"Adventure / Narrative",         publisher:"Annapurna",           desc:"A family history narrative masterpiece." },
+  "Wolfenstein® II: The New Colossus™":{ genre:"FPS",                     publisher:"Bethesda",            desc:"Alternate-history FPS sequel." },
+  "Wolfenstein®: The New Order": { genre:"FPS",                           publisher:"Bethesda",            desc:"Alternate-history FPS reboot." },
+  "Wolfenstein®: The Old Blood": { genre:"FPS",                           publisher:"Bethesda",            desc:"Prequel to The New Order." },
+  "Wolfenstein: Youngblood":     { genre:"FPS / Co-op",                   publisher:"Bethesda",            desc:"Co-op Wolfenstein spin-off." },
+  "Wonder Boy: The Dragon's Trap":{ genre:"Platformer / Adventure",       publisher:"Dotemu",              desc:"Remake of the classic Wonder Boy." },
+  "Wordhunters™":                { genre:"Quiz / Party",                  publisher:"SIE",                 desc:"PlayLink word game." },
+  "World War Z":                 { genre:"Third-Person Shooter / Zombie", publisher:"Saber",               desc:"Co-op zombie shooter." },
+  "Worms Battlegrounds":         { genre:"Strategy / Artillery",          publisher:"Team17",              desc:"Worms artillery game." },
+  "Worms W.M.D":                 { genre:"Strategy / Artillery",          publisher:"Team17",              desc:"The acclaimed Worms entry." },
+  "Wreckfest":                   { genre:"Racing / Destruction",          publisher:"THQ Nordic",          desc:"Full-contact demolition racing." },
+  "XCOM 2":                      { genre:"Strategy / Tactics",            publisher:"2K",                  desc:"Turn-based alien resistance." },
+  "YAKUZA 0":                    { genre:"Action-Adventure",              publisher:"SEGA",                desc:"Yakuza prequel." },
+  "YAKUZA 3":                    { genre:"Action-Adventure",              publisher:"SEGA",                desc:"Yakuza 3 remastered." },
+  "YAKUZA 4":                    { genre:"Action-Adventure",              publisher:"SEGA",                desc:"Yakuza 4 remastered." },
+  "YAKUZA 5":                    { genre:"Action-Adventure",              publisher:"SEGA",                desc:"Yakuza 5 remastered." },
+  "YAKUZA 6: The Song of Life":  { genre:"Action-Adventure",              publisher:"SEGA",                desc:"Kiryu's final chapter." },
+  "YAKUZA KIWAMI":               { genre:"Action-Adventure",              publisher:"SEGA",                desc:"Remake of the first Yakuza." },
+  "YAKUZA KIWAMI 2":             { genre:"Action-Adventure",              publisher:"SEGA",                desc:"Remake of Yakuza 2." },
+  "You Suck At Parking":         { genre:"Racing / Puzzle",               publisher:"Happy Volcano",       desc:"Parking puzzle game." },
+  "ZONE OF THE ENDERS THE 2nd RUNNER : M∀RS":{ genre:"Action / Mecha",    publisher:"Konami",              desc:"Mecha action remaster." },
+  "Zero Escape: The Nonary Games":{ genre:"Adventure / Visual Novel",     publisher:"Spike Chunsoft",      desc:"Both Zero Escape games." },
+  "Zombie Army 4: Dead War":     { genre:"Third-Person Shooter / Zombie", publisher:"Rebellion",           desc:"Co-op zombie sniper shooter." },
+  "Zombie Army Trilogy":         { genre:"Third-Person Shooter / Zombie", publisher:"Rebellion",           desc:"The first three Zombie Army games." }
+};
+
+const FALLBACK_GENRES = ["Action","Adventure","RPG","Indie","Puzzle","Racing","Sports","Strategy","Simulation","Fighting","Horror","Shooter","Platformer"];
+function pickFallback(name) {
+  let h = 0; for (let i=0;i<name.length;i++) h = (h*31 + name.charCodeAt(i)) >>> 0;
+  return FALLBACK_GENRES[h % FALLBACK_GENRES.length];
+}
+
+/* ---------- State ---------- */
+let ALL = [];
+let FILTERED = [];
+
+/* ---------- Load JSON ---------- */
+const grid = document.getElementById('grid');
+const stat = document.getElementById('stat');
+const searchInput = document.getElementById('search');
+const regionFilter = document.getElementById('regionFilter');
+const genreFilter = document.getElementById('genreFilter');
+const sortBy = document.getElementById('sortBy');
+const fileInput = document.getElementById('fileInput');
+
+async function tryAutoLoad() {
+  // Try to fetch GAMES.json from the same folder
+  try {
+    const res = await fetch('GAMES.json', {cache:'no-store'});
+    if (!res.ok) throw new Error('no file');
+    const json = await res.json();
+    ingest(json);
+  } catch(e) {
+    // Fallback: try localStorage
+    const cached = localStorage.getItem('fpkgi_data');
+    if (cached) {
+      try { ingest(JSON.parse(cached)); return; } catch(_) {}
+    }
+    grid.innerHTML = `<div class="empty">
+      <p>No GAMES.json found in this folder.</p>
+      <p style="margin-top:8px;">Click <b>📁 Load GAMES.json</b> to pick your file, or place GAMES.json next to this HTML file and refresh.</p>
+    </div>`;
+    stat.textContent = 'No data';
+  }
+}
+
+function ingest(json) {
+  const data = json.DATA || json;
+  ALL = Object.entries(data).map(([url, g]) => {
+    const meta = META[g.name] || {};
+    return {
+      url,
+      title_id: g.title_id || '',
+      region: g.region || 'UNK',
+      name: g.name || 'Unknown',
+      version: g.version || '',
+      release: g.release || '',
+      size: g.size || 0,
+      min_fw: g.min_fw || '',
+      cover_url: g.cover_url || '',
+      genre: meta.genre || pickFallback(g.name || ''),
+      publisher: meta.publisher || 'Unknown',
+      description: meta.desc || `No description available. ${g.name || ''} is a ${meta.genre || pickFallback(g.name || '')} title.`
+    };
+  });
+  localStorage.setItem('fpkgi_data', JSON.stringify(json));
+  buildGenreFilter();
+  applyFilters();
+}
+
+/* ---------- UI ---------- */
+function buildGenreFilter() {
+  const genres = [...new Set(ALL.map(g => g.genre))].sort();
+  genreFilter.innerHTML = '<option value="">All Genres</option>' +
+    genres.map(g => `<option value="${escapeAttr(g)}">${escapeHtml(g)}</option>`).join('');
+}
+
+function applyFilters() {
+  const q = searchInput.value.trim().toLowerCase();
+  const r = regionFilter.value;
+  const gen = genreFilter.value;
+  const s = sortBy.value;
+
+  FILTERED = ALL.filter(g => {
+    if (r && g.region !== r) return false;
+    if (gen && g.genre !== gen) return false;
+    if (q) {
+      const hay = (g.name + ' ' + g.genre + ' ' + g.publisher + ' ' + g.description).toLowerCase();
+      if (!hay.includes(q)) return false;
+    }
+    return true;
+  });
+
+  FILTERED.sort((a,b) => {
+    if (s === 'name') return a.name.localeCompare(b.name);
+    if (s === 'size') return b.size - a.size;
+    if (s === 'region') return a.region.localeCompare(b.region) || a.name.localeCompare(b.name);
+    if (s === 'version') return a.version.localeCompare(b.version) || a.name.localeCompare(b.name);
+    return 0;
+  });
+
+  render();
+  stat.textContent = `${FILTERED.length} / ${ALL.length} games`;
+}
+
+function render() {
+  if (!FILTERED.length) {
+    grid.innerHTML = '<div class="empty">No games match your filters.</div>';
+    return;
+  }
+  const html = FILTERED.map((g, i) => `
+    <div class="card" data-i="${i}">
+      <div class="cover">
+        <div class="badges">
+          <span class="badge region-${escapeAttr(g.region)}">${escapeHtml(g.region)}</span>
+          <span class="badge">v${escapeHtml(g.version)}</span>
+        </div>
+        ${g.cover_url
+          ? `<img loading="lazy" src="${escapeAttr(g.cover_url)}" alt="" onerror="this.style.display='none';this.parentNode.insertAdjacentHTML('beforeend','<div class=\\'fallback\\'>No cover</div>')">`
+          : `<div class="fallback">No cover</div>`}
+      </div>
+      <div class="body">
+        <div class="title">${escapeHtml(g.name)}</div>
+        <div class="genre">${escapeHtml(g.genre)}</div>
+        <div class="desc">${escapeHtml(truncate(g.description, 110))}</div>
+        <div class="meta">
+          <span>${escapeHtml(g.title_id)}</span>
+          <span>${formatSize(g.size)}</span>
+        </div>
+      </div>
+    </div>
+  `).join('');
+  grid.innerHTML = html;
+
+  grid.querySelectorAll('.card').forEach(el => {
+    el.addEventListener('click', () => openModal(FILTERED[+el.dataset.i]));
+  });
+}
+
+function truncate(s, n) { return s.length > n ? s.slice(0, n-1) + '…' : s; }
+function formatSize(b) {
+  if (!b) return '—';
+  const gb = b / (1024**3);
+  if (gb >= 1) return gb.toFixed(2) + ' GB';
+  return (b / (1024**2)).toFixed(0) + ' MB';
+}
+function escapeHtml(s) { return String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
+function escapeAttr(s) { return escapeHtml(s); }
+
+/* ---------- Modal ---------- */
+const modal = document.getElementById('modal');
+function openModal(g) {
+  document.getElementById('mCover').src = g.cover_url || '';
+  document.getElementById('mCover').style.display = g.cover_url ? 'block' : 'none';
+  document.getElementById('mTitle').textContent = g.name;
+  document.getElementById('mGenre').textContent = g.genre + ' · ' + g.publisher;
+  document.getElementById('mDesc').textContent = g.description;
+  document.getElementById('mBody').innerHTML = `
+    <div class="field"><div class="k">Title ID</div><div class="v">${escapeHtml(g.title_id)}</div></div>
+    <div class="field"><div class="k">Region</div><div class="v">${escapeHtml(g.region)}</div></div>
+    <div class="field"><div class="k">Version</div><div class="v">${escapeHtml(g.version)}</div></div>
+    <div class="field"><div class="k">Release</div><div class="v">${escapeHtml(g.release)}</div></div>
+    <div class="field"><div class="k">Size</div><div class="v">${formatSize(g.size)} (${g.size.toLocaleString()} bytes)</div></div>
+    <div class="field"><div class="k">Min Firmware</div><div class="v">${escapeHtml(g.min_fw)}</div></div>
+    <div class="field"><div class="k">Publisher</div><div class="v">${escapeHtml(g.publisher)}</div></div>
+    <div class="field"><div class="k">PKG URL</div><div class="v">${escapeHtml(g.url)}</div></div>
+  `;
+  modal.classList.add('open');
+}
+document.getElementById('mClose').addEventListener('click', () => modal.classList.remove('open'));
+modal.addEventListener('click', e => { if (e.target === modal) modal.classList.remove('open'); });
+
+/* ---------- Events ---------- */
+searchInput.addEventListener('input', applyFilters);
+regionFilter.addEventListener('change', applyFilters);
+genreFilter.addEventListener('change', applyFilters);
+sortBy.addEventListener('change', applyFilters);
+
+document.getElementById('loadFileBtn').addEventListener('click', () => fileInput.click());
+fileInput.addEventListener('change', e => {
+  const f = e.target.files[0];
+  if (!f) return;
+  const reader = new FileReader();
+  reader.onload = ev => {
+    try {
+      ingest(JSON.parse(ev.target.result));
+      toast('Loaded ' + f.name);
+    } catch(err) {
+      toast('Invalid JSON: ' + err.message);
+    }
+  };
+  reader.readAsText(f);
+});
+
+/* ---------- Export enriched JSON ---------- */
+document.getElementById('exportBtn').addEventListener('click', () => {
+  const out = { DATA: {} };
+  ALL.forEach(g => {
+    out.DATA[g.url] = {
+      title_id: g.title_id,
+      region: g.region,
+      name: g.name,
+      version: g.version,
+      release: g.release,
+      size: g.size,
+      min_fw: g.min_fw,
+      cover_url: g.cover_url,
+      genre: g.genre,
+      publisher: g.publisher,
+      description: g.description
+    };
+  });
+  const blob = new Blob([JSON.stringify(out, null, 2)], {type:'application/json'});
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = 'GAMES-enriched.json';
+  a.click();
+  URL.revokeObjectURL(a.href);
+  toast('Exported GAMES-enriched.json');
+});
+
+/* ---------- Toast ---------- */
+let toastTimer;
+function toast(msg) {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.classList.add('show');
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => t.classList.remove('show'), 2200);
+}
+
+/* ---------- Init ---------- */
+tryAutoLoad();
+</script>
+</body>
+</html>
